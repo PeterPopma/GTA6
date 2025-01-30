@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -15,7 +16,11 @@ public class UI : MonoBehaviour
     [SerializeField] GameObject canvasHelp;
     [SerializeField] TextMeshProUGUI textMissionTime;
     [SerializeField] TextMeshProUGUI textMissionMedal;
+    [SerializeField] TextMeshProUGUI textInfo;
+    [SerializeField] TextMeshProUGUI textInfo2;
+    [SerializeField] List<GameObject> wantedStars;
     [SerializeField] Image imageMedal;
+    [SerializeField] Image imagePhone;
 
     //    [SerializeField] private RectTransform minimapPlayer;
     private Rect rectFrame;
@@ -28,6 +33,13 @@ public class UI : MonoBehaviour
     private bool showAchievements;
     private bool showHelp;
     private float timeLeftDisplayMissionCompleted;
+    private bool wantedStarsActive;
+    private float timeLeftWantedStarsVisible;
+    private float timePhoneActive;
+    private bool phoneConversationActive;
+    private AudioSource soundRingtone;
+    private AudioSource soundMission1;
+    private bool phoneConversationStarted;
 
     private float corner;
 
@@ -48,6 +60,11 @@ public class UI : MonoBehaviour
         canvasMissionCompleted.SetActive(false);
         canvasAchievements.SetActive(false);
         canvasHelp.SetActive(false);
+        textInfo.enabled = false;
+        textInfo2.enabled = false;
+        timeLeftWantedStarsVisible = 50; 
+        soundRingtone = GameObject.Find("/Sound/Ringtone").GetComponent<AudioSource>();
+        soundMission1 = GameObject.Find("/Sound/Mission1").GetComponent<AudioSource>();
     }
 
     private Vector2 WorldToMapPosition(float x, float z)
@@ -59,24 +76,84 @@ public class UI : MonoBehaviour
 
     void OnGUI()
     {
-        if (showMap)
+        if (!phoneConversationActive && !Game.Instance.UseFreeCamera)
         {
-            UpdateMap();
-        }
-        else if (Game.Instance.ShowMiniMap && !showAchievements && !showHelp)
-        {
-            UpdateMiniMap();
+            if (showMap)
+            {
+                UpdateMap();
+            }
+            else if (Game.Instance.ShowMiniMap && !showAchievements && !showHelp)
+            {
+                UpdateMiniMap();
+            }
         }
     }
 
-    void FixedUpdate()
+    public void RingPhone()
     {
+        imagePhone.sprite = Resources.Load<Sprite>("uphone");
+        imagePhone.enabled = true;
+        phoneConversationActive = true;
+        timePhoneActive = 0;
+        phoneConversationStarted = false;
+        soundRingtone.Play();
+    }
+
+    void Update()
+    {
+        if (phoneConversationActive)
+        {
+            timePhoneActive += Time.deltaTime;
+            int yPos = (int)(-200 + timePhoneActive * 400);
+            if (timePhoneActive > 11.5f)        // move phone down again
+            {
+                yPos = (int)(-200 + (12-timePhoneActive) * 400);
+            }
+            if (yPos > 0)
+            {
+                yPos = 0;
+            }
+            imagePhone.rectTransform.anchoredPosition = new Vector2(0, yPos);
+            if (!phoneConversationStarted && timePhoneActive > 2)
+            {
+                phoneConversationStarted = true;
+                imagePhone.sprite = Resources.Load<Sprite>("uphone_mission1");
+                soundRingtone.Stop();
+                soundMission1.Play();
+            }
+            if (timePhoneActive > 12)
+            {
+                phoneConversationActive = false;
+                imagePhone.enabled = false;
+            }
+        }
+
         if (timeLeftDisplayMissionCompleted > 0)
         {
             timeLeftDisplayMissionCompleted -= Time.deltaTime;
             if (timeLeftDisplayMissionCompleted <= 0)
             {
                 canvasMissionCompleted.SetActive(false);
+            }
+        }
+        if (timeLeftWantedStarsVisible > 0)
+        {
+            timeLeftWantedStarsVisible--;
+            if (timeLeftWantedStarsVisible <= 0)
+            {
+                timeLeftWantedStarsVisible = 50;
+                wantedStarsActive = !wantedStarsActive;
+                for (int i = 0; i<wantedStars.Count; i++)
+                {
+                    if (wantedStarsActive && Game.Instance.WantedLevel>i)
+                    {
+                        wantedStars[i].SetActive(true);
+                    }
+                    else
+                    {
+                        wantedStars[i].SetActive(false);
+                    }
+                }
             }
         }
     }
@@ -129,12 +206,16 @@ public class UI : MonoBehaviour
         {
             Progress.Instance.UpdateProgressScreen();
         }
+        showHelp = false;
+        canvasHelp.SetActive(false);
         canvasAchievements.SetActive(showAchievements);
     }
 
     public void ToggleHelpScreen()
     {
         showHelp = !showHelp;
+        showAchievements = false;
+        canvasAchievements.SetActive(false); 
         canvasHelp.SetActive(showHelp);
     }
 

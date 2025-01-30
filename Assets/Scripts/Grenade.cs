@@ -41,21 +41,30 @@ public class Grenade : MonoBehaviour
         lifeTime -= Time.deltaTime;
         if (lifeTime < 0f)
         {
-            Vector3 explosionPos = transform.position;
-            Collider[] colliders = Physics.OverlapSphere(explosionPos, 15.0f);
-
             bool somethingHit = false;
+            Collider[] colliders = Physics.OverlapSphere(transform.position, 5.0f);
             foreach (Collider collider in colliders)
             {
-                if (collider.gameObject.GetComponent<Target>() != null)
+                if (collider.gameObject.GetComponent<NPC>() != null)
                 {
-                    somethingHit = true;
-                    // TODO..
+                    collider.gameObject.GetComponent<NPC>().BlastImpact(gameObject);
                 }
-            }
-            if (somethingHit)
-            {
-                //player.ShotsHit++;
+                else
+                {
+                    Rigidbody rigidBody = collider.gameObject.GetComponent<Rigidbody>();
+                    if (rigidBody != null)
+                    {
+                        Vector3 forceDirection = (collider.gameObject.transform.position - transform.position).normalized;
+                        forceDirection = new Vector3(forceDirection.x, 12, forceDirection.z) * 1.0f;
+                        rigidBody.constraints = RigidbodyConstraints.None;
+                        rigidBody.AddForce(forceDirection, ForceMode.VelocityChange);
+                        rigidBody.AddTorque(Random.insideUnitSphere * 20, ForceMode.VelocityChange);
+                    }
+                }
+                if (collider.gameObject.GetComponent<SelfDestruct>() != null)
+                {
+                    collider.gameObject.GetComponent<SelfDestruct>().DestroyAfterDelay();
+                }
             }
 
             soundGrenadeExplosion.Play();

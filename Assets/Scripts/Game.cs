@@ -1,7 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
+using Unity.Cinemachine;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
 public class Game : MonoBehaviour
@@ -10,11 +12,12 @@ public class Game : MonoBehaviour
     [SerializeField] Terrain mainTerrain;
     [SerializeField] private GameObject effectsParent;
     [SerializeField] GameObject panelMission;
+    [SerializeField] GameObject canvasMain;
     [SerializeField] TextMeshProUGUI textMission;
     [SerializeField] TextMeshProUGUI textMessage;
-    [SerializeField] TextMeshProUGUI textPlayerHint;
     [SerializeField] TextMeshProUGUI textDiamonds;
     [SerializeField] List<Mission> missions = new();
+    [SerializeField] Transform playerCameraRoot;
     List<GameObject> npcs = new();
     List<GameObject> cars = new();
     List<GameObject> gems = new();
@@ -28,6 +31,11 @@ public class Game : MonoBehaviour
     bool showMiniMap = true;
     bool showAchievements = false;
     int viewDistance = 5;
+    CinemachineCamera cameraFollow;
+    CinemachineCamera cameraFreeView;
+    int wantedLevel = 4;
+    bool missionExplained = false;
+    private bool useFreeCamera;
 
     public List<GameObject> Cars { get => cars; set => cars = value; }
     public List<GameObject> NPCs { get => npcs; set => npcs = value; }
@@ -38,10 +46,14 @@ public class Game : MonoBehaviour
     public bool ShowMiniMap { get => showMiniMap; set => showMiniMap = value; }
     public int ViewDistance { get => viewDistance; set => viewDistance = value; }
     public Terrain MainTerrain { get => mainTerrain; set => mainTerrain = value; }
+    public int WantedLevel { get => wantedLevel; set => wantedLevel = value; }
+    public bool UseFreeCamera { get => useFreeCamera; set => useFreeCamera = value; }
 
     public void Awake()
     {
         Instance = this;
+        cameraFollow = GameObject.Find("FollowCamera").GetComponent<CinemachineCamera>();
+        cameraFreeView = GameObject.Find("FreeCamera").GetComponent<CinemachineCamera>();
     }
 
     public void Start()
@@ -50,19 +62,48 @@ public class Game : MonoBehaviour
         Cursor.visible = false; 
         textDiamonds.enabled = false; 
         textMessage.enabled = false;
-        textPlayerHint.enabled = true;
+    }
+
+    public void SetFollowCamera(Transform followTransform)
+    {
+        cameraFollow.Follow = followTransform;
+    }
+
+    public void SetFollowCameraToPlayer()
+    {
+        cameraFollow.Follow = playerCameraRoot;
+    }
+
+    public void ToggleFreeCamera()
+    {
+        useFreeCamera = !useFreeCamera;
+        if (useFreeCamera)
+        {
+            ShowMessage("Free camera on");
+            canvasMain.SetActive(false);
+            cameraFreeView.gameObject.GetComponent<FreeCamera>().CameraPosition = Camera.main.transform.position;
+            cameraFreeView.enabled = true; 
+            cameraFreeView.gameObject.GetComponent<PlayerInput>().enabled = true;
+        }
+        else
+        {
+            ShowMessage("Free camera off");
+            canvasMain.SetActive(true);
+            cameraFreeView.enabled = false;
+            cameraFreeView.gameObject.GetComponent<PlayerInput>().enabled = false;
+        }
     }
 
     public void FixedUpdate()
     {
-        if (timeLeftPlayerHint > 0)
+
+        /*
+        if (!missionExplained && Time.time > 20)
         {
-            timeLeftPlayerHint -= Time.deltaTime;
-            if (timeLeftPlayerHint <= 0)
-            {
-                textPlayerHint.enabled = false;
-            }
-        }
+            missionExplained = true;
+            GameObject.Find("Scripts/UI").GetComponent<UI>().RingPhone();
+        }*/
+
         if (timeLeftDisplayMessage > 0)
         {
             timeLeftDisplayMessage -= Time.deltaTime;
@@ -131,18 +172,11 @@ public class Game : MonoBehaviour
         }
     }
 
-    public void ShowPlayerHint(string hintText, float duration = 3f)
-    {
-        this.textPlayerHint.text = hintText;
-        timeLeftPlayerHint = duration;
-        textPlayerHint.enabled = true;
-    }
-
-    public void ShowMessage(string message)
+    public void ShowMessage(string message, float duration = 3f)
     {
         textMessage.text = message;
         textMessage.enabled = true;
-        timeLeftDisplayMessage = 3;
+        timeLeftDisplayMessage = duration;
     }
 
     public void ShowAchievements(bool showAchievements)

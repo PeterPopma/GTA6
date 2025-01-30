@@ -9,12 +9,14 @@ using UnityEngine.UI;
 
 public class Player : MonoBehaviour
 {
-    const int WEAPON_PUNCH = 0, WEAPON_PISTOL = 1, WEAPON_RIFLE = 2, WEAPON_GRENADE = 3, WEAPON_BASEBALLBAT = 4, WEAPON_ROCKETLAUNCHER = 5;
-    const int LAYER_FIREPISTOL = 1, LAYER_PUNCH = 2, LAYER_HOLDRIFLE = 3, LAYER_FIRERIFLE = 4, LAYER_THROW = 5, LAYER_SLASH = 6;
+    const int WEAPON_PUNCH = 0, WEAPON_PISTOL = 1, WEAPON_RIFLE = 2, WEAPON_ROCKETLAUNCHER = 3, WEAPON_GRENADE = 4, WEAPON_BASEBALLBAT = 5;
+    const int LAYER_PUNCH = 1, LAYER_AIMPISTOL = 2, LAYER_FIREPISTOL = 3, LAYER_AIMRIFLE = 4, LAYER_FIRERIFLE = 5, LAYER_THROW = 6, LAYER_STRIKE = 7;
 
-    [SerializeField] new ParticleSystem particleSystemBlood;
+    [SerializeField] private GameObject aimPoint;
+    [SerializeField] ParticleSystem particleSystemBlood;
     [SerializeField] private LayerMask aimColliderLayerMask;
     [SerializeField] private Transform vfxFireGun;
+    [SerializeField] private Transform vfxRocketSmoke;
     [SerializeField] private GameObject rightHandPosition;
     [SerializeField] private CinemachineCamera vcamAim;
     [SerializeField] private CinemachineCamera vcamPlayerFollow;
@@ -33,47 +35,59 @@ public class Player : MonoBehaviour
     [SerializeField] private GameObject pfGrenade;
     [SerializeField] private GameObject playerSpawnPoint;
     [SerializeField] private GameObject meshRoot;
-    //    [SerializeField] private GameObject hitIndicator;
-    //    [SerializeField] private Material matIndicator1;
-    //    [SerializeField] private Material matIndicator2;
-    [SerializeField] private Rig rigPistol;
-    [SerializeField] private Rig rigRifle;
+    [SerializeField] private GameObject pfRocket;
+    [SerializeField] private Transform rocketSpawnPosition;
     [SerializeField] private Transform pfShell;
     [SerializeField] private new Rigidbody rigidbody;
     [SerializeField] private Transform hips;
     [SerializeField] Slider sliderHealthBar;
+    /*
+    [SerializeField] private GameObject hitIndicator;
+    [SerializeField] private GameObject hitIndicator2;
+    [SerializeField] private GameObject hitIndicator3;
+    [SerializeField] private GameObject hitIndicator4;
+    [SerializeField] private GameObject hitIndicator5;
+    [SerializeField] private GameObject hitIndicator6;
+    [SerializeField] private Material matIndicator1;
+    [SerializeField] private Material matIndicator2;
+    */
 
-    private Car driveableCar;
+    private Driveable driveable;
     private GameObject objectInHand;
     private UI UIScript;
-    private AudioSource soundGunshot;
+    private AudioSource soundPistolShot;
+    private AudioSource soundRifleShot;
     private AudioSource soundWoosh;
     private AudioSource soundPunch;
-    private AudioSource soundDieMale;
-    private AudioSource soundScreamMale;
-    private AudioSource soundScreamMale2;
     private AudioSource soundThrow;
     private AudioSource soundSwitchWeapon;
-    bool smokeCreated;
-    bool isAiming;
-    Animator animator;
-    float timeLeftShooting;
-    float timeLeftPunching;
-    float timeLeftBlood;
-    float timeLeftExploded; 
-    float timeLastWeaponThrow;
-    float timeLeftDying;
+    private AudioSource soundRocketLauncher;
+    private bool smokeCreated;
+    private bool isAiming;
+    private Animator animator;
+    private float timeLeftShooting;
+    private float timeLeftPunching;
+    private float timeLeftBlood;
+    private float timeLeftExploded;
+    private float timeLastWeaponThrow;
+    private float timeLeftDying;
+    private float timeLeftAimToShoot;
+    private float timeLeftAutoFire;
     private bool throwingWeapon = false;
     private bool thrownWeapon = false;
+    private bool isAutoFiring = false;
     private Vector3 hitPosition;
     private RigBuilder rigBuilder;
     private Transform hitTransForm;
+    private Vector3 aimDirection;
     private CharacterController characterController;
     private NPC hitNPC;
-    bool hitEnemy;
-    int activeWeapon;
-    int health = 100;
+    private bool hitEnemy;
+    private int activeWeapon;
+    private int health = 100;
     private int timesStuck;
+    private LayerMask layerMaskVehicle;
+    private List<AudioClip> clipsScreamMale = new List<AudioClip>();
 
     [Header("Character Input Values")]
     public Vector2 move;
@@ -86,7 +100,6 @@ public class Player : MonoBehaviour
 
     [Header("Mouse Cursor Settings")]
     public bool cursorLocked = true;
-    public bool cursorInputForLook = true;
 
     public float TimeLeftPunching { get => timeLeftPunching; set => timeLeftPunching = value; }
     public GameObject ObjectInHand { get => objectInHand; set => objectInHand = value; }
@@ -94,36 +107,41 @@ public class Player : MonoBehaviour
     private void Awake()
     {
         rigBuilder = gameObject.GetComponent<RigBuilder>();
+        layerMaskVehicle = LayerMask.GetMask("Vehicle");
     }
 
     // Start is called before the first frame update
     void Start()
     {
         GetComponent<CarController>().enabled = false;
+        GetComponent<MotorbikeController>().enabled = false;
         vcamRagdoll.enabled = false;
         vcamAim.enabled = false;
         animator = GetComponent<Animator>();
         gunFirePistol.SetActive(false);
         gunFireRifle.SetActive(false);
         aimCursor.enabled = false;
-        soundGunshot = GameObject.Find("/Sound/Gunshot").GetComponent<AudioSource>();
+        soundPistolShot = GameObject.Find("/Sound/Gunshot").GetComponent<AudioSource>();
+        soundRifleShot = GameObject.Find("/Sound/Gunshot2").GetComponent<AudioSource>();
         soundWoosh = GameObject.Find("/Sound/Woosh").GetComponent<AudioSource>();
         soundPunch = GameObject.Find("/Sound/Punch").GetComponent<AudioSource>();
-        soundDieMale = GameObject.Find("/Sound/DyingMale3").GetComponent<AudioSource>();
-        soundScreamMale = GameObject.Find("/Sound/ScreamMale2").GetComponent<AudioSource>();
-        soundScreamMale2 = GameObject.Find("/Sound/ScreamMale3").GetComponent<AudioSource>();
         soundThrow = GameObject.Find("/Sound/Throw").GetComponent<AudioSource>();
         soundSwitchWeapon = GameObject.Find("/Sound/SwitchWeapon").GetComponent<AudioSource>();
+        soundRocketLauncher = GameObject.Find("/Sound/RocketLauncher").GetComponent<AudioSource>();
+        Transform soundsRoot = GameObject.Find("/Sound/MaleScreams").transform;
+        foreach (Transform item in soundsRoot)
+        {
+            AudioClip clip = item.gameObject.GetComponent<AudioSource>().clip;
+            clipsScreamMale.Add(clip);
+        }
         characterController = gameObject.GetComponent<CharacterController>();
         baseballBat.SetActive(false);
-        pistol.SetActive(false);
-        rifle.SetActive(false);
-        rigPistol.weight = 0;
-        rigRifle.weight = 0;
+        rigBuilder.layers[0].active = false;
+        rigBuilder.layers[1].active = false;
+        rigBuilder.layers[2].active = false;
         particleSystemBlood.Stop();
-        activeWeapon = WEAPON_PISTOL;
-        pistol.SetActive(true);
-        imageIconWeapon.GetComponent<Image>().sprite = Resources.Load<Sprite>("icon_pistol");
+        activeWeapon = WEAPON_PUNCH;
+        imageIconWeapon.GetComponent<Image>().sprite = Resources.Load<Sprite>("icon_fist");
         UIScript = GameObject.Find("/Scripts/UI").GetComponent<UI>();
         sliderHealthBar.value = 1 - (health / 100f);
     }
@@ -139,31 +157,65 @@ public class Player : MonoBehaviour
         timeLeftBlood = 0.5f;
         health -= 5;
         sliderHealthBar.value = 1 - (health / 100f);
+        Scream();
         if (health <= 0)
         {
-            soundDieMale.Play();
             Explode(0);
             timeLeftDying = 4;
         }
-
-        if (Random.value < .5)
-        {
-            soundScreamMale.Play();
-        }
-        else
-        {
-            soundScreamMale2.Play();
-        }
+    }
+    private void Scream()
+    {
+        AudioSource.PlayClipAtPoint(clipsScreamMale[Random.Range(0, clipsScreamMale.Count)], transform.position);
     }
 
     public void PutObjectInHand(GameObject objectInHand)
     {
         this.objectInHand = objectInHand;
-        Game.Instance.ShowPlayerHint("Press [R] to release item");
+        Game.Instance.ShowMessage("Press [R] to release item");
         if (objectInHand.name == "safe" && Game.Instance.Missions.Find(o => o.Name == "bank").IsActive)
         {
             Game.Instance.Missions.Find(o => o.Name == "bank").NextDestination();
             Game.Instance.DisplayMission("Good! Now bring the safe to the Saloon on the hill above St Dutch.");
+        }
+    }
+
+    private void HandlePistolFiring()
+    {
+        if (timeLeftShooting < 0.6 && !smokeCreated)
+        {
+            smokeCreated = true;
+            Transform newEffect = Instantiate(vfxFireGun, rightHandPosition.transform.position, Quaternion.identity);
+            newEffect.parent = Game.Instance.EffectsParent.transform;
+            gunFirePistol.SetActive(true);
+        }
+        if (timeLeftShooting < 0.55)
+        {
+            gunFirePistol.SetActive(false);
+        }
+    }
+
+    private void HandleRifleFiring()
+    {
+        if (timeLeftShooting < 0)
+        {
+            animator.SetLayerWeight(LAYER_FIRERIFLE, 0);
+        }
+        else
+        {
+            animator.SetLayerWeight(LAYER_FIRERIFLE, 1);
+        }
+        if (timeLeftShooting < 0.6 && !smokeCreated)
+        {
+            smokeCreated = true;
+            Transform newEffect = Instantiate(vfxFireGun, rightHandPosition.transform.position, Quaternion.identity);
+            newEffect.parent = Game.Instance.EffectsParent.transform;
+            Instantiate(pfShell, rifle.transform.position, Quaternion.LookRotation(transform.forward, Vector3.up));
+            gunFireRifle.SetActive(true);
+        }
+        if (timeLeftShooting < 0.55)
+        {
+            gunFireRifle.SetActive(false);
         }
     }
 
@@ -216,6 +268,7 @@ public class Player : MonoBehaviour
             if (timeLeftPunching < 0)
             {
                 animator.SetLayerWeight(LAYER_PUNCH, 0);
+                animator.SetLayerWeight(LAYER_STRIKE, 0);
             }
             if (hitEnemy==false && timeLeftPunching < 0.8f)
             {
@@ -230,32 +283,21 @@ public class Player : MonoBehaviour
         }
         if (timeLeftShooting > 0)
         {
+            animator.SetLayerWeight(LAYER_FIREPISTOL, Mathf.Lerp(animator.GetLayerWeight(LAYER_FIREPISTOL), 1f, Time.deltaTime * 20f));
             timeLeftShooting -= Time.deltaTime;
-            if (timeLeftShooting < 0)
+
+            if (activeWeapon == WEAPON_PISTOL)
             {
-                animator.SetLayerWeight(LAYER_FIREPISTOL, 0);
-                animator.SetLayerWeight(LAYER_HOLDRIFLE, 0);
-                animator.SetLayerWeight(LAYER_FIRERIFLE, 0);
+                HandlePistolFiring();
             }
-            if (timeLeftShooting < 0.6 && !smokeCreated)
+            if (activeWeapon == WEAPON_RIFLE)
             {
-                smokeCreated = true;
-                Transform newEffect = Instantiate(vfxFireGun, rightHandPosition.transform.position, Quaternion.identity);
-                newEffect.parent = Game.Instance.EffectsParent.transform;
-                if (activeWeapon == WEAPON_PISTOL)
-                {
-                    gunFirePistol.SetActive(true);
-                }
-                else
-                {
-                    gunFireRifle.SetActive(true);
-                }
+                HandleRifleFiring();
             }
-            if (timeLeftShooting < 0.5)
-            {
-                gunFirePistol.SetActive(false);
-                gunFireRifle.SetActive(false);
-            }
+        }
+        else
+        {
+            animator.SetLayerWeight(LAYER_FIREPISTOL, Mathf.Lerp(animator.GetLayerWeight(LAYER_FIREPISTOL), 0f, Time.deltaTime * 5f));
         }
         if (throwingWeapon)
         {
@@ -277,9 +319,8 @@ public class Player : MonoBehaviour
                 FinishThrowing();
             }
         }
-
         HandleAiming();
-        HandleShooting();
+        SetRigLayers();
     }
 
     public void FinishThrowing()
@@ -298,22 +339,25 @@ public class Player : MonoBehaviour
         {
             transform.position = playerSpawnPoint.transform.position;
         }
-        driveableCar = null;
-        Collider[] colliders = Physics.OverlapSphere(transform.position, 2);
+        driveable = null;
+        Collider[] colliders = Physics.OverlapSphere(transform.position, 2, layerMaskVehicle);
         foreach (var collider in colliders)
         {
-            if (collider.gameObject.tag=="Car" && GetComponent<CarController>().Car==null)
+            if (collider.transform.GetComponent<Driveable>() != null && 
+                GetComponent<CarController>().Car == null && GetComponent<MotorbikeController>().Motorbike == null && 
+                GetComponent<AirplaneController>().Airplane == null)
             {
-                Transform currentTransform = collider.gameObject.transform;
-                // The collider can be on a child object of the root, so we need to find the root with the car script.
-                do
-                {
-                    driveableCar = currentTransform.gameObject.GetComponent<Car>();
-                    currentTransform = currentTransform.parent;
-                }
-                while(driveableCar==null);
-
-                Game.Instance.ShowPlayerHint("Press [F] to enter vehicle");
+                driveable = collider.transform.GetComponent<Driveable>();
+                Game.Instance.ShowMessage("Press [F] to enter");
+            }
+        }
+        if (isAutoFiring)
+        {
+            timeLeftAutoFire -= Time.deltaTime;
+            if (timeLeftAutoFire < 0)
+            {
+                timeLeftAutoFire = 0.15f;
+                FireRifle();
             }
         }
     }
@@ -339,25 +383,62 @@ public class Player : MonoBehaviour
         timeLeftBlood = 0.5f;
     }
 
-    private void HandleShooting()
+    private void CalculateAimPoint()
     {
-        //Vector2 screenCenterPoint = new Vector2(Screen.width / 2f, Screen.height / 2f);
-        //Ray ray = Camera.main.ScreenPointToRay(screenCenterPoint);
-        Ray ray = Camera.main.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
-        if (Physics.Raycast(ray, out RaycastHit raycastHit, 999f, aimColliderLayerMask))
+        Ray ray;
+        if (isAiming)
         {
-            hitTransForm = raycastHit.transform;
-            hitPosition = raycastHit.point;
-//            hitIndicator.GetComponent<Renderer>().material = matIndicator1;
+            Vector2 screenCenterPoint = new Vector2(Screen.width / 2f, Screen.height / 2f);
+            ray = Camera.main.ScreenPointToRay(screenCenterPoint);
         }
         else
         {
-            // we didn't hit anything, so take a point in the direction of the ray
-            hitPosition = ray.GetPoint(10);
-            hitTransForm = null;
-//            hitIndicator.GetComponent<Renderer>().material = matIndicator2;
+            // if not aiming, the player fires in the direction he is currently facing
+            Vector3 raycastDir = transform.forward;
+            ray = new Ray(rightHandPosition.transform.position, raycastDir);
         }
-//        hitIndicator.transform.position = hitPosition;
+
+        if (Physics.Raycast(ray, out RaycastHit raycastHit, 999f, aimColliderLayerMask))
+        {
+            /*
+            hitIndicator.GetComponent<Renderer>().material = matIndicator1;
+            hitIndicator2.GetComponent<Renderer>().material = matIndicator1;
+            hitIndicator3.GetComponent<Renderer>().material = matIndicator1;
+            hitIndicator4.GetComponent<Renderer>().material = matIndicator1;
+            hitIndicator5.GetComponent<Renderer>().material = matIndicator1;
+            hitIndicator6.GetComponent<Renderer>().material = matIndicator1;
+            */
+            hitTransForm = raycastHit.transform;
+            hitPosition = raycastHit.point;
+        }
+        else
+        {
+            /*
+            hitIndicator.GetComponent<Renderer>().material = matIndicator2;
+            hitIndicator2.GetComponent<Renderer>().material = matIndicator2;
+            hitIndicator3.GetComponent<Renderer>().material = matIndicator2;
+            hitIndicator4.GetComponent<Renderer>().material = matIndicator2;
+            hitIndicator5.GetComponent<Renderer>().material = matIndicator2;
+            hitIndicator6.GetComponent<Renderer>().material = matIndicator2;
+            */
+
+            // we didn't hit anything, so take a point in the direction of the ray
+            hitTransForm = null;
+            hitPosition = ray.GetPoint(100);
+        }
+
+        /*
+        hitIndicator.transform.position = Vector3.Lerp(hitPosition, transform.position, 0);
+        hitIndicator2.transform.position = Vector3.Lerp(hitPosition, transform.position, 0.2f);
+        hitIndicator3.transform.position = Vector3.Lerp(hitPosition, transform.position, 0.4f);
+        hitIndicator4.transform.position = Vector3.Lerp(hitPosition, transform.position, 0.6f);
+        hitIndicator5.transform.position = Vector3.Lerp(hitPosition, transform.position, 0.8f);
+        hitIndicator6.transform.position = Vector3.Lerp(hitPosition, transform.position, 1);
+        */
+
+        // Move the aim target
+        aimPoint.transform.position = hitPosition;
+        aimDirection = (hitPosition - rightHandPosition.transform.position).normalized;
     }
 
     private void CheckHit(GameObject gunFire = null)
@@ -367,17 +448,7 @@ public class Player : MonoBehaviour
             hitNPC = hitTransForm.GetComponent<NPC>();
             if (hitNPC != null)
             {
-                if (hitNPC.TimesHit > 1 && !hitNPC.HasDied && hitNPC.UseRagdoll == false && Random.value > 0.5)
-                {
-                    hitNPC.NpcState = NPCState_.StandingStill;
-                    GameObject bullet = Instantiate(pfBullet, gunFire.transform.position, Quaternion.LookRotation(transform.forward, Vector3.up));
-                    Bullet bulletScript = bullet.GetComponent<Bullet>();
-                    bulletScript.Setup(hitPosition, this);
-                }
-                else
-                {
-                    HandleNPCHit();
-                }
+                HandleNPCHit();
                 return;
             }
             Target target = hitTransForm.GetComponent<Target>();
@@ -393,36 +464,79 @@ public class Player : MonoBehaviour
         }
     }
 
-    private void HandleAiming()
+    private void SetRigLayers()
     {
-        if (isAiming && vcamRagdoll.enabled == false)
+        if (isAiming || timeLeftShooting > 0)
         {
-            rigBuilder.layers[0].active = true;
-            rigBuilder.layers[1].active = true;
-            vcamAim.enabled = true;
-            aimCursor.enabled = true;
-
-            Vector3 aimLocationXZ = new(hitPosition.x, hitPosition.y, hitPosition.z);
-            aimLocationXZ.y = transform.position.y;
-
-            // Turn player towards aim point (only x and z axis)
-            transform.forward = Vector3.Lerp(transform.forward, (aimLocationXZ - transform.position).normalized, Time.deltaTime * 10f);
-
             if (activeWeapon == WEAPON_PISTOL)
             {
-                rigPistol.weight = 1;
+                rigBuilder.layers[0].active = true;
             }
             if (activeWeapon == WEAPON_RIFLE)
             {
-                rigRifle.weight = 1;
+                rigBuilder.layers[1].active = true;
+            }
+            if (activeWeapon == WEAPON_ROCKETLAUNCHER)
+            {
+                rigBuilder.layers[2].active = true;
             }
         }
         else
         {
-            rigPistol.weight = 0;
-            rigRifle.weight = 0; 
             rigBuilder.layers[0].active = false;
             rigBuilder.layers[1].active = false;
+            rigBuilder.layers[2].active = false;
+        }
+    }
+
+    private void HandleAiming()
+    {
+        //isAiming = true;
+        CalculateAimPoint();
+
+        if (isAiming || timeLeftAimToShoot > 0)
+        {
+            if (timeLeftAimToShoot > 0)
+            {
+                timeLeftAimToShoot -= Time.deltaTime;
+                if (timeLeftAimToShoot < 0)
+                {
+                    FireRocket();
+                }
+            }
+
+            Vector3 aimLocationXZ = new(hitPosition.x, hitPosition.y, hitPosition.z);
+            aimLocationXZ.y = transform.position.y;
+            // Turn player towards aim point (only x and z axis)
+            transform.forward = Vector3.Lerp(transform.forward, (aimLocationXZ - transform.position).normalized, Time.deltaTime * 10f);
+            if (activeWeapon == WEAPON_RIFLE || activeWeapon == WEAPON_ROCKETLAUNCHER)
+            {
+                animator.SetLayerWeight(LAYER_AIMRIFLE, Mathf.Lerp(animator.GetLayerWeight(LAYER_AIMRIFLE), 1f, Time.deltaTime * 10f));
+            }
+            if (activeWeapon == WEAPON_PISTOL)
+            {
+                animator.SetLayerWeight(LAYER_AIMPISTOL, Mathf.Lerp(animator.GetLayerWeight(LAYER_AIMPISTOL), 1f, Time.deltaTime * 10f));
+            }
+        }
+        else
+        {
+            animator.SetLayerWeight(LAYER_AIMPISTOL, Mathf.Lerp(animator.GetLayerWeight(LAYER_AIMPISTOL), 0f, Time.deltaTime * 10f));
+            animator.SetLayerWeight(LAYER_AIMRIFLE, Mathf.Lerp(animator.GetLayerWeight(LAYER_AIMRIFLE), 0f, Time.deltaTime * 10f));
+        }
+
+        if (isAiming && vcamRagdoll.enabled == false)
+        {
+            vcamAim.enabled = true;
+            aimCursor.enabled = true;
+
+            Vector3 aimLocationXZ = new(hitPosition.x, hitPosition.y, hitPosition.z);
+            aimLocationXZ .y = transform.position.y;
+
+            // Turn player towards aim point (only x and z axis)
+            transform.forward = Vector3.Lerp(transform.forward, (aimLocationXZ - transform.position).normalized, Time.deltaTime * 10f);
+        }
+        else
+        {
             vcamAim.enabled = false;
             aimCursor.enabled = false;
         }
@@ -441,52 +555,85 @@ public class Player : MonoBehaviour
         }
     }
 
-    private void OnShoot()
+    private void OnShoot(InputValue value)
     {
-        if (activeWeapon == WEAPON_PUNCH && timeLeftPunching <= 0)
+        if (value.isPressed)
         {
-            timeLeftPunching = 1.2f;
-            animator.Play("Punch", LAYER_PUNCH, 0f);
-            animator.SetLayerWeight(LAYER_PUNCH, 1f);
-            soundWoosh.Play();
-            hitEnemy = false;
+            if (activeWeapon == WEAPON_PUNCH && timeLeftPunching <= 0)
+            {
+                timeLeftPunching = 1.2f;
+                animator.Play("Punch", LAYER_PUNCH, 0f);
+                animator.SetLayerWeight(LAYER_PUNCH, 1f);
+                soundWoosh.Play();
+                hitEnemy = false;
+            }
+            if (activeWeapon == WEAPON_PISTOL)
+            {
+                animator.Play("FirePistol", LAYER_FIREPISTOL, 0);
+                soundPistolShot.Play();
+                ShootGun(gunFirePistol);
+            }
+            if (activeWeapon == WEAPON_RIFLE)
+            {
+                isAutoFiring = true;
+                timeLeftAutoFire = 0;
+            }
+            if (activeWeapon == WEAPON_ROCKETLAUNCHER)
+            {
+                timeLeftShooting = 0.7f;
+                if (!isAiming)
+                {
+                    // If player is not aiming, this is done here to have a firing animation
+                    timeLeftAimToShoot = 0.5f;
+                }
+                else
+                {
+                    FireRocket();
+                }
+            }
+            if (activeWeapon == WEAPON_GRENADE)
+            {
+                timeLastWeaponThrow = Time.time;
+                throwingWeapon = true;
+                animator.Play("Throw", LAYER_THROW, 0f);
+                animator.SetLayerWeight(LAYER_THROW, 1f);
+            }
+            if (activeWeapon == WEAPON_BASEBALLBAT)
+            {
+                timeLeftPunching = 1.2f;
+                soundWoosh.Play();
+                animator.Play("Strike", LAYER_STRIKE, 0.05f);
+                animator.SetLayerWeight(LAYER_STRIKE, 1f);
+                hitEnemy = false;
+            }
         }
-        if (activeWeapon == WEAPON_PISTOL)
+        else
         {
-            animator.Play("Shoot", LAYER_FIREPISTOL, 0);
-            animator.SetLayerWeight(LAYER_FIREPISTOL, 1);
-            soundGunshot.Play();
-            ShootGun(gunFirePistol);
+            isAutoFiring = false;
         }
-        if (activeWeapon == WEAPON_RIFLE)
-        {
-            animator.Play("FireRifle", LAYER_FIRERIFLE, 0);
-            animator.SetLayerWeight(LAYER_FIRERIFLE, 1);
-            soundGunshot.Play();
-            Instantiate(pfShell, rifle.transform.position, Quaternion.LookRotation(transform.forward, Vector3.up));
-            ShootGun(gunFireRifle);
-        }
-        if (activeWeapon == WEAPON_GRENADE)
-        {
-            timeLastWeaponThrow = Time.time;
-            throwingWeapon = true;
-            animator.Play("Throw", LAYER_THROW, 0f);
-            animator.SetLayerWeight(LAYER_THROW, 1f);
-        }
-        if (activeWeapon == WEAPON_BASEBALLBAT)
-        {
-            timeLastWeaponThrow = Time.time;
-            throwingWeapon = true;
-            animator.Play("Slash", LAYER_THROW, 0f);
-            animator.SetLayerWeight(LAYER_THROW, 1f);
-        }
+    }
+
+    private void FireRifle()
+    {
+        animator.Play("FireRifle", LAYER_FIRERIFLE, 0);
+        animator.SetLayerWeight(LAYER_FIRERIFLE, 1);
+        soundRifleShot.Play();
+        ShootGun(gunFireRifle);
+    }
+
+    private void FireRocket()
+    {
+        animator.Play("FireRifle", LAYER_FIRERIFLE, 0);
+        animator.SetLayerWeight(LAYER_FIRERIFLE, 1);
+        soundRocketLauncher.Play();
+        Instantiate(pfRocket, rocketSpawnPosition.position, Quaternion.LookRotation(aimDirection, Vector3.up));
+        Instantiate(vfxRocketSmoke, transform.position, Quaternion.identity);
     }
 
     private void ShootGun(GameObject gunFire)
     {
         timeLeftShooting = 0.7f;
         smokeCreated = false;
-        HandleShooting();
         CheckHit(gunFire);
     }
 
@@ -504,17 +651,18 @@ public class Player : MonoBehaviour
     {
         soundSwitchWeapon.Play();
         activeWeapon++;
-        animator.SetLayerWeight(LAYER_FIREPISTOL, 0f);
         animator.SetLayerWeight(LAYER_PUNCH, 0f);
-        animator.SetLayerWeight(LAYER_HOLDRIFLE, 0f);
+        animator.SetLayerWeight(LAYER_AIMPISTOL, 0f);
+        animator.SetLayerWeight(LAYER_AIMRIFLE, 0f);
+        animator.SetLayerWeight(LAYER_FIREPISTOL, 0f);
         animator.SetLayerWeight(LAYER_FIRERIFLE, 0f);
-        if (activeWeapon > WEAPON_ROCKETLAUNCHER)
+        if (activeWeapon > 5)
         {
-            activeWeapon = WEAPON_PUNCH;
+            activeWeapon = 0;
         }
         if (activeWeapon == WEAPON_PUNCH)
         {
-            rocketLauncher.SetActive(false);
+            baseballBat.SetActive(false);
             imageIconWeapon.GetComponent<Image>().sprite = Resources.Load<Sprite>("icon_fist");
         }
         if (activeWeapon == WEAPON_PISTOL)
@@ -524,13 +672,22 @@ public class Player : MonoBehaviour
         }
         if (activeWeapon == WEAPON_RIFLE)
         {
+            rigBuilder.layers[0].active = false;
             pistol.SetActive(false);
             rifle.SetActive(true);
             imageIconWeapon.GetComponent<Image>().sprite = Resources.Load<Sprite>("icon_akm");
         }
+        if (activeWeapon == WEAPON_ROCKETLAUNCHER)
+        {
+            rigBuilder.layers[1].active = false;
+            rifle.SetActive(false);
+            rocketLauncher.SetActive(true);
+            imageIconWeapon.GetComponent<Image>().sprite = Resources.Load<Sprite>("icon_rocketlauncher");
+        }
         if (activeWeapon == WEAPON_GRENADE)
         {
-            rifle.SetActive(false);
+            rigBuilder.layers[2].active = false;
+            rocketLauncher.SetActive(false);
             grenade.SetActive(true);
             imageIconWeapon.GetComponent<Image>().sprite = Resources.Load<Sprite>("icon_grenade");
         }
@@ -540,30 +697,21 @@ public class Player : MonoBehaviour
             baseballBat.SetActive(true);
             imageIconWeapon.GetComponent<Image>().sprite = Resources.Load<Sprite>("icon_baseballbat");
         }
-        if (activeWeapon == WEAPON_ROCKETLAUNCHER)
-        {
-            baseballBat.SetActive(false);
-            rocketLauncher.SetActive(true);
-            imageIconWeapon.GetComponent<Image>().sprite = Resources.Load<Sprite>("icon_rocketlauncher");
-        }
     }
 
     private void OnAim(InputValue value)
     {
         isAiming = value.isPressed;
-        if (activeWeapon == WEAPON_PISTOL)
+        if (isAiming)
         {
-            animator.Play("Shoot", LAYER_FIREPISTOL, 0);
-            animator.SetLayerWeight(LAYER_FIREPISTOL, 1);
-        }
-        if (activeWeapon == WEAPON_RIFLE)
-        {
-            animator.Play("HoldRifle", LAYER_HOLDRIFLE, 0);
-            animator.SetLayerWeight(LAYER_HOLDRIFLE, 1);
-        }
-        if (!isAiming)
-        {
-            animator.SetLayerWeight(LAYER_HOLDRIFLE, 0);
+            if (activeWeapon == WEAPON_PISTOL)
+            {
+                animator.Play("AimPistol", LAYER_AIMPISTOL, 0);
+            }
+            if (activeWeapon == WEAPON_RIFLE || activeWeapon == WEAPON_ROCKETLAUNCHER)
+            {
+                animator.Play("AimRifle", LAYER_AIMRIFLE, 0);
+            }
         }
     }
 
@@ -574,23 +722,80 @@ public class Player : MonoBehaviour
 
     public void OnLook(InputValue value)
     {
-        if (cursorInputForLook)
+        look = value.Get<Vector2>();
+    }
+
+    public void OnEnterVehicle()
+    {
+        if ( GetComponent<CarController>().Car == null && 
+            GetComponent<AirplaneController>().Airplane == null &&
+             GetComponent<MotorbikeController>().Motorbike == null)
         {
-            look = value.Get<Vector2>();
+            if (driveable != null)
+            {
+                if (driveable.gameObject.GetComponent<Car>() != null)
+                {
+                    GetComponent<CarController>().SetCar(driveable.gameObject.GetComponent<Car>());
+                    GetComponent<CarController>().enabled = true;
+                    GetComponent<AirplaneController>().enabled = false;
+                    GetComponent<MotorbikeController>().enabled = false;
+                    Game.Instance.ShowMessage("");
+                }
+                else if (driveable.gameObject.GetComponent<Motorbike>() != null)
+                {
+                    GetComponent<MotorbikeController>().SetMotorbike(driveable.gameObject.GetComponent<Motorbike>());
+                    GetComponent<MotorbikeController>().enabled = true;
+                    GetComponent<AirplaneController>().enabled = false;
+                    GetComponent<CarController>().enabled = false;
+                    Game.Instance.ShowMessage("");
+                }
+                else if (driveable.gameObject.GetComponent<Airplane>() != null)
+                {
+                    GetComponent<AirplaneController>().SetAirplane(driveable.gameObject.GetComponent<Airplane>());
+                    GetComponent<AirplaneController>().enabled = true;
+                    GetComponent<MotorbikeController>().enabled = false;
+                    GetComponent<CarController>().enabled = false;
+                    Game.Instance.ShowMessage("Accelerate: +   Decelerate: -   Yaw Left: <   Yaw Right: >", 20);
+                }
+                animator.enabled = false;
+                GetComponent<ThirdPersonController>().enabled = false;
+                GetComponent<CapsuleCollider>().enabled = false;
+                GetComponent<CharacterController>().enabled = false;
+                meshRoot.SetActive(false);
+                UpdateView();
+            }
+        }
+        else
+        {
+            ExitVehicle();
         }
     }
 
-    public void OnEnterVehicle(InputValue value)
+    public void ExitVehicle()
     {
-        if (driveableCar != null)
+        if (GetComponent<CarController>().Car != null)
         {
-            GetComponent<CarController>().SetCar(driveableCar);
-            GetComponent<CarController>().enabled = true;
-            GetComponent<ThirdPersonController>().enabled = false;
-            GetComponent<CapsuleCollider>().enabled = false;
-            GetComponent<CharacterController>().enabled = false;
-            meshRoot.SetActive(false);
+            transform.position = GetComponent<CarController>().Car.transform.position + new Vector3(2, 0, 0);
+            GetComponent<CarController>().ExitCar();
+            GetComponent<CarController>().enabled = false;
         }
+        else if (GetComponent<MotorbikeController>().Motorbike != null)
+        {
+            transform.position = GetComponent<MotorbikeController>().Motorbike.transform.position + new Vector3(2, 0, 0);
+            GetComponent<MotorbikeController>().enabled = false;
+        }
+        else if (GetComponent<AirplaneController>().Airplane != null)
+        {
+            transform.position = GetComponent<AirplaneController>().Airplane.transform.position + new Vector3(2, 0, 0);
+            GetComponent<AirplaneController>().ExitAirplane();
+            Game.Instance.SetFollowCameraToPlayer();
+        }
+        animator.enabled = true;
+        GetComponent<ThirdPersonController>().enabled = true;
+        GetComponent<CapsuleCollider>().enabled = true;
+        GetComponent<CharacterController>().enabled = true;
+        meshRoot.SetActive(true);
+        UpdateView();
     }
 
     public void OnToggleMiniMap()
@@ -601,20 +806,38 @@ public class Player : MonoBehaviour
 
     public void OnChangeView()
     {
-        if (Game.Instance.ViewDistance == 10)
+        if (Game.Instance.ViewDistance == 1)
+        {
+            Game.Instance.ViewDistance = 2;
+        }
+        else if (Game.Instance.ViewDistance == 2)
         {
             Game.Instance.ViewDistance = 5;
         }
         else if(Game.Instance.ViewDistance == 5)
         {
-            Game.Instance.ViewDistance = 1;
+            Game.Instance.ViewDistance = 10;
         }
         else
         {
-            Game.Instance.ViewDistance = 10;
+            Game.Instance.ViewDistance = 1;
         }
-        vcamPlayerFollow.GetComponent<CinemachineThirdPersonFollow>().CameraDistance = Game.Instance.ViewDistance;
         Game.Instance.ShowMessage("View Distance: " + Game.Instance.ViewDistance);
+        UpdateView();
+    }
+
+    public void UpdateView()
+    {
+        float distanceFactor = 1;
+        if (GetComponent<CarController>().Car != null)
+        {
+            distanceFactor = 2f;
+        }
+        if (GetComponent<AirplaneController>().Airplane != null)
+        {
+            distanceFactor = 2f;
+        }
+        vcamPlayerFollow.GetComponent<CinemachineThirdPersonFollow>().CameraDistance = Game.Instance.ViewDistance * distanceFactor;
     }
 
     public void OnToggleSuperSpeed()
@@ -663,5 +886,10 @@ public class Player : MonoBehaviour
     private void OnHelp()
     {
         UIScript.ToggleHelpScreen();
+    }
+
+    private void OnToggleFreeCamera()
+    {
+        Game.Instance.ToggleFreeCamera();
     }
 }

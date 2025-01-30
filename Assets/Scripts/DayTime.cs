@@ -45,7 +45,7 @@ public class DayTime : MonoBehaviour
         }
         textDayTime.text = hours.ToString("00") + ":" + (minuteOfDay % 60).ToString("00");
         sunLight.transform.rotation = Quaternion.Euler(0, minuteOfDay / (float)MINUTES_PER_DAY * 360, 0);
-        elevation = ((720 - Mathf.Abs((MINUTES_PER_DAY / 2) - minuteOfDay)) * 0.083f) - 5; // 720..0..720  -> 0..720..0  -> 0..60..0  -> -5..55..-5
+        elevation = ((720 - Mathf.Abs((MINUTES_PER_DAY / 2) - minuteOfDay)) * 0.083f) - 10; // 720..0..720  -> 0..720..0  -> 0..60..0  -> -5..55..-5
         sunLight.transform.Rotate(new Vector3(elevation, 0, 0));
         if (elevation < 0 && !isNight)
         {

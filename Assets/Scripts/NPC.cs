@@ -5,20 +5,21 @@ using UnityEngine;
 public enum NPCState_
 {
     WalkingAround,
+    StandingStill,
+    Patrol,
     FollowingPlayer,
     Falling,
-    StandingStill,
-    Patrol
+    Random
 }
 
 public class NPC : MonoBehaviour
 {
     const int LAYER_SHOOT = 4;
-    const int TIME_BEFORE_DYING_PLAYER_IS_REMOVED = 60;
-    const float MOVE_SPEED = 3.0f;
+    const int TIME_BEFORE_DYING_PLAYER_IS_REMOVED = 300;
+    const int PATROL_AREA_SIZE = 20;
+    const int MAX_WALK_DISTANCE = 50;
 
     [SerializeField] bool isFemale;
-    [SerializeField] bool useRagdoll;
     [SerializeField] NPCState_ initialState = NPCState_.WalkingAround;
     [SerializeField] private Transform hips;
     [SerializeField] private new Rigidbody rigidbody;
@@ -26,90 +27,113 @@ public class NPC : MonoBehaviour
     [SerializeField] private GameObject gunFirePistol;
     [SerializeField] private Transform vfxFireGun;
     [SerializeField] private GameObject pistol;
-    [SerializeField] private float aggresiveness = 0.5f;
 
     private AudioSource soundGunshot;
     private CharacterController characterController;
     private Animator animator;
-    private AudioSource soundScreamMale, soundScreamMale2, soundScreamFemale;
-    private AudioSource soundDyingMale, soundDyingMale2, soundDyingFemale;
+    private List<AudioClip> clipsScreamMale = new List<AudioClip>();
+    private List<AudioClip> clipsScreamFemale = new List<AudioClip>(); 
     private NPCState_ npcState, initialNPCState;
     private Vector3 storedPosition;
-    private Vector3 positionBeforeDying;
     private Player player;
     private int animIDSpeed;
     private int timesStuck;
-    private int layer;
     private float timeLastDistanceMeasurement;
     private float currentSpeed;
+    private float walkingSpeed;
     private float timeLeftDying;
     private float timeLeftShooting;
-    private float timeLeftExploded;
-    private float playerLowerValue;
+    private float timeLeftKnockedOut;
+    private float timeLeftCurrentState;
     private Vector2 destination;
     private readonly List<Vector2> patrolRallyPoints = new();
     private int currentRallyPointIndex;
     private bool hasDied;
     private int timesHit;
     private bool pistolActive;
-    private bool smokeCreated;
+    private bool shotFired;
+    private int layerVehicle;
 
     public Vector2 Destination { get => destination; set => destination = value; }
     public NPCState_ NpcState { get => npcState; set => npcState = value; }
     public int TimesHit { get => timesHit; set => timesHit = value; }
-    public bool UseRagdoll { get => useRagdoll; set => useRagdoll = value; }
     public bool HasDied { get => hasDied; set => hasDied = value; }
 
     void Awake()
     {
+        layerVehicle = LayerMask.NameToLayer("Vehicle");
         animIDSpeed = Animator.StringToHash("Speed");
         animator = GetComponent<Animator>();
         characterController = GetComponent<CharacterController>();
-        soundScreamMale = GameObject.Find("/Sound/ScreamMale").GetComponent<AudioSource>();
-        soundScreamMale2 = GameObject.Find("/Sound/ScreamMale2").GetComponent<AudioSource>();
-        soundScreamFemale = GameObject.Find("/Sound/ScreamFemale").GetComponent<AudioSource>();
-        soundDyingMale = GameObject.Find("/Sound/DyingMale").GetComponent<AudioSource>();
-        soundDyingMale2 = GameObject.Find("/Sound/DyingMale2").GetComponent<AudioSource>();
-        soundDyingFemale = GameObject.Find("/Sound/DyingFemale").GetComponent<AudioSource>();
+        Transform soundsRoot = GameObject.Find("/Sound/FemaleScreams").transform;
+        foreach (Transform item in soundsRoot)
+        {
+            AudioClip clip = item.gameObject.GetComponent<AudioSource>().clip;
+            clipsScreamFemale.Add(clip);
+        }
+        soundsRoot = GameObject.Find("/Sound/MaleScreams").transform;
+        foreach (Transform item in soundsRoot)
+        {
+            AudioClip clip = item.gameObject.GetComponent<AudioSource>().clip;
+            clipsScreamMale.Add(clip);
+        }
         soundGunshot = GameObject.Find("/Sound/Gunshot").GetComponent<AudioSource>();
     }
 
     private void Start()
     {
+        initialNPCState = initialState;
+
+        if (initialNPCState.Equals(NPCState_.Random))
+        {
+            SetNextRandomState();
+        }
+
         initialNPCState = npcState = initialState;
         player = GameObject.Find("Player").GetComponent<Player>();
 
         if (pistol != null)
         {
-            if (Random.value <= aggresiveness)
-            {
-                pistolActive = true;
-            }
-            else
-            {
-                pistolActive = false;
-                pistol.SetActive(false);
-            }
+            pistolActive = true;
         }
-        if (!useRagdoll)
+        if (npcState.Equals(NPCState_.Patrol))
         {
-            // if it is not a default ragdoll, use it sometimes anyway for variation
-            useRagdoll = Random.value > 0.7f;
+            SetRandomPatrolDestinations();
         }
-        if (initialState.Equals(NPCState_.Patrol))
-        {
-            patrolRallyPoints.Add(new Vector2(transform.position.x, transform.position.z));
-            patrolRallyPoints.Add(new Vector2(transform.position.x - 5 + Random.value * 10, transform.position.z - 5 + Random.value * 10));
-        }
+        walkingSpeed = 2 + Random.value * 4;
         NewDestination();
     }
 
-    public void SetPatrolDestinations(Vector2 destination)
+    private void SetNextRandomState()
     {
-        npcState = NPCState_.Patrol;
+        npcState = (NPCState_)Random.Range(0, 3);
+        timeLeftCurrentState = 10;
+        if (npcState.Equals(NPCState_.Patrol))
+        {
+            // When walking around we don't need to update because the destination will be changed when reached.
+            SetRandomPatrolDestinations();
+        }
+        walkingSpeed = 2 + Random.value * 4;
+        UpdateAnimationSpeed();
+    }
+
+    private void UpdateAnimationSpeed()
+    {
+        if (npcState.Equals(NPCState_.StandingStill))
+        {
+            animator.SetFloat(animIDSpeed, 0);
+        }
+        else
+        {
+            animator.SetFloat(animIDSpeed, walkingSpeed);
+        }
+    }
+
+    public void SetRandomPatrolDestinations()
+    {
         patrolRallyPoints.Clear();
         patrolRallyPoints.Add(new Vector2(transform.position.x, transform.position.z));
-        patrolRallyPoints.Add(destination);
+        patrolRallyPoints.Add(new Vector2(transform.position.x - PATROL_AREA_SIZE/2 + Random.value * PATROL_AREA_SIZE, transform.position.z - PATROL_AREA_SIZE/2 + Random.value * PATROL_AREA_SIZE));
     }
 
     private void NextPatrolDestination()
@@ -124,27 +148,18 @@ public class NPC : MonoBehaviour
 
     void Update()
     {
+        if (initialNPCState.Equals(NPCState_.Random))
+        {
+            timeLeftCurrentState -= Time.deltaTime;
+            if (timeLeftCurrentState < 0)
+            {
+                SetNextRandomState();
+            }
+        }
+
         if (hasDied)
         {
             timeLeftDying -= Time.deltaTime;
-
-            if (timeLeftDying < TIME_BEFORE_DYING_PLAYER_IS_REMOVED - 0.1 && layer == 1 && playerLowerValue < 1.4)
-            {
-                playerLowerValue += Time.deltaTime * 6;
-                transform.position = positionBeforeDying - new Vector3(0, playerLowerValue, 0);
-            }
-
-            if (timeLeftDying < TIME_BEFORE_DYING_PLAYER_IS_REMOVED - 0.95f && layer == 2 && playerLowerValue < 1.4f)
-            {
-                playerLowerValue += Time.deltaTime * 2f;
-                transform.position = positionBeforeDying - new Vector3(0, playerLowerValue, 0);
-            }
-
-            if (timeLeftDying < TIME_BEFORE_DYING_PLAYER_IS_REMOVED - 0.5f && layer == 3 && playerLowerValue < 1f)
-            {
-                playerLowerValue += Time.deltaTime * 6f;
-                transform.position = positionBeforeDying - new Vector3(0, playerLowerValue, 0);
-            }
 
             if (timeLeftDying < 0)
             {
@@ -155,25 +170,28 @@ public class NPC : MonoBehaviour
             return;
         }
 
-        if (timeLeftExploded > 0)
+        if (timeLeftKnockedOut > 0)
         {
-            timeLeftExploded -= Time.deltaTime;
-            if (timeLeftExploded < 0)
+            timeLeftKnockedOut -= Time.deltaTime;
+            if (timeLeftKnockedOut < 0)
             {
                 float y = Game.Instance.MainTerrain.SampleHeight(hips.position);
                 if (timesStuck < 10 && hips.position.y - y > 1)
                 {
                     // not on the ground yet
-                    timeLeftExploded = 2f;
+                    timeLeftKnockedOut = 2f;
                     timesStuck++;     // prevent getting stuck when there is something wrong with sampling the terrain height
                 }
                 else
                 {
-                    transform.position = new Vector3(hips.position.x, y + 1, hips.position.z);
-                    characterController.enabled = true;
-                    animator.enabled = true;
-                    rigidbody.isKinematic = false;
-                    Die();
+                    if (timesHit > 2 )
+                    {
+                        Die();
+                    }
+                    else
+                    {
+                        RiseAgain(y);
+                    }
                 }
             }
         }
@@ -185,9 +203,9 @@ public class NPC : MonoBehaviour
             {
                 animator.SetLayerWeight(LAYER_SHOOT, 0);
             }
-            if (timeLeftShooting < 0.6 && !smokeCreated)
+            if (timeLeftShooting < 0.6 && !shotFired)
             {
-                smokeCreated = true;
+                shotFired = true;
                 Instantiate(vfxFireGun, handPosition.transform.position, Quaternion.identity);
                 gunFirePistol.SetActive(true);
                 if (Random.value > 0.5)
@@ -242,12 +260,20 @@ public class NPC : MonoBehaviour
         }
     }
 
+    private void RiseAgain(float y)
+    {
+        transform.position = new Vector3(hips.position.x, y + 1, hips.position.z);
+        characterController.enabled = true;
+        animator.enabled = true;
+        rigidbody.isKinematic = false;
+    }
+
     private void FirePistol()
     {
         timeLeftShooting = 0.7f;
         animator.Play("Shoot", LAYER_SHOOT, 0);
         animator.SetLayerWeight(LAYER_SHOOT, 1);
-        smokeCreated = false;
+        shotFired = false;
         soundGunshot.Play();
     }
 
@@ -265,7 +291,7 @@ public class NPC : MonoBehaviour
             Vector3 newDirection = new(Mathf.Lerp(transform.forward.x, direction.x, Time.deltaTime * 4f), 0, Mathf.Lerp(transform.forward.z, direction.z, Time.deltaTime * 4f));
 
             transform.rotation = Quaternion.LookRotation(newDirection, Vector3.up);
-            characterController.Move(2 * MOVE_SPEED * Time.deltaTime * newDirection);
+            characterController.Move(2 * walkingSpeed * Time.deltaTime * newDirection);
         }
         else
         {
@@ -286,14 +312,20 @@ public class NPC : MonoBehaviour
 
     }
 
-    public void Explode()
+    public void BlastImpact(GameObject otherObject, float multiplyFactor = 1)
     {
+        Scream();
         characterController.enabled = false;
         animator.enabled = false;
         rigidbody.isKinematic = false;
-        rigidbody.AddForce(new Vector3(0, 80, 0), ForceMode.VelocityChange);
+
+        Vector3 forceDirection = (otherObject.transform.position - transform.position).normalized;
+        forceDirection = new Vector3(forceDirection.x, 12, forceDirection.z) * multiplyFactor;
+        rigidbody.AddForce(forceDirection, ForceMode.VelocityChange);
         rigidbody.AddTorque(Random.insideUnitSphere, ForceMode.VelocityChange);
-        timeLeftExploded = 4;
+
+        timesHit++;
+        timeLeftKnockedOut = 4;
     }
 
     private void NewDestination()
@@ -304,8 +336,20 @@ public class NPC : MonoBehaviour
         }
         else
         {
-            destination = new Vector2(Random.value * (Settings.PLAYFIELD_MAX_X - Settings.PLAYFIELD_MIN_X) + Settings.PLAYFIELD_MIN_X,
-                Random.value * (Settings.PLAYFIELD_MAX_Z - Settings.PLAYFIELD_MIN_Z) + Settings.PLAYFIELD_MIN_Z);
+            destination = new Vector2(transform.position.x - MAX_WALK_DISTANCE / 2 + Random.value * MAX_WALK_DISTANCE, 
+                transform.position.z - MAX_WALK_DISTANCE / 2 + Random.value * MAX_WALK_DISTANCE);
+        }
+    }
+
+    private void Scream()
+    {
+        if (isFemale)
+        {
+            AudioSource.PlayClipAtPoint(clipsScreamFemale[Random.Range(0, clipsScreamFemale.Count)], transform.position);
+        }
+        else
+        {
+            AudioSource.PlayClipAtPoint(clipsScreamMale[Random.Range(0, clipsScreamMale.Count)], transform.position);
         }
     }
 
@@ -322,27 +366,11 @@ public class NPC : MonoBehaviour
         Vector3 direction = hitPosition - transform.position;
         transform.rotation = Quaternion.LookRotation(direction, Vector3.up);
 
+        Scream();
+
         if (timesHit > 2)
         {
             Die();
-        }
-        else
-        {
-            if (isFemale)
-            {
-                soundScreamFemale.Play();
-            }
-            else
-            {   
-                if(Random.value < .5)
-                {
-                    soundScreamMale.Play();
-                }
-                else
-                {
-                    soundScreamMale2.Play();
-                }
-            }
         }
     }
 
@@ -350,36 +378,11 @@ public class NPC : MonoBehaviour
     {
         hasDied = true;
         Progress.Instance.Kills++;
-        positionBeforeDying = transform.position;
         timeLeftDying = TIME_BEFORE_DYING_PLAYER_IS_REMOVED;
-        layer = Random.Range(1, 4);
-        if (useRagdoll)
-        {
-            characterController.enabled = false;
-            animator.enabled = false;
-        }
-        else
-        {
-            animator.SetLayerWeight(layer, 1);
-            animator.Play("Fall", layer, 0);
-        }
-        if (isFemale)
-        {
-            soundDyingFemale.Play();
-        }
-        else
-        {
-            if (Random.value < .5)
-            {
-                soundDyingMale.Play();
-            }
-            else
-            {
-                soundDyingMale2.Play();
-            }
-        }
+        characterController.enabled = false;
+        animator.enabled = false;
+
         npcState = NPCState_.Falling;
-        playerLowerValue = 0;
     }
 
     private void Move()
@@ -408,13 +411,13 @@ public class NPC : MonoBehaviour
             Vector2 distanceToDestination = destination - new Vector2(transform.position.x, transform.position.z);
             if (distanceToDestination.sqrMagnitude > 0.01f)
             {
-                animator.SetFloat(animIDSpeed, 5f);
+                animator.SetFloat(animIDSpeed, walkingSpeed);
                 distanceToDestination.Normalize();
                 Vector3 direction = new(distanceToDestination.x, 0, distanceToDestination.y);
                 transform.rotation = Quaternion.LookRotation(direction, Vector3.up);
                 if (characterController.enabled)
                 {
-                    characterController.Move(MOVE_SPEED * Time.deltaTime * direction);
+                    characterController.Move(walkingSpeed * Time.deltaTime * direction);
                 }
             }
             else
@@ -425,5 +428,26 @@ public class NPC : MonoBehaviour
         }
     }
 
+    void OnTriggerEnter(Collider other)
+    {
+        if (other.gameObject.GetComponent<Car>() != null)
+        {
+            BlastImpact(other.gameObject, 2.5f + player.GetComponent<CarController>().Speed * 0.1f);
+        }
+        if (other.gameObject.GetComponent<Motorbike>() != null)
+        {
+            BlastImpact(other.gameObject, 2.5f + player.GetComponent<MotorbikeController>().Speed * 0.1f);
+        }
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        /*
+        if (collision.collider.gameObject.layer == layerVehicle)
+        {
+            rigidbody.constraints = RigidbodyConstraints.None;
+            Scream();
+        }*/
+    }
 
 }

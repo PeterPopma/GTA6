@@ -5,25 +5,39 @@ using UnityEngine;
 public class Target : MonoBehaviour
 {
     [SerializeField] private Transform vfxHit;
-    private AudioSource soundSmash;
+    [SerializeField] private bool isDisplaceable;
+    private List<AudioSource> soundsHit = new List<AudioSource>();
     new Rigidbody rigidbody;
+
+    private void Awake()
+    {
+        Transform soundsRoot = GameObject.Find("/Sound/WallHit").transform;
+        foreach (Transform item in soundsRoot)
+        {
+            soundsHit.Add(item.gameObject.GetComponent<AudioSource>());
+        }
+    }
 
     // Start is called before the first frame update
     void Start()
     {
-        soundSmash = GameObject.Find("/Sound/Smash").GetComponent<AudioSource>();
         rigidbody = GetComponent<Rigidbody>();
     }
 
     public void Hit(Vector3 hitPosition)
     {
-        soundSmash.Play();
+        soundsHit[Random.Range(0, soundsHit.Count)].Play();
         if (!hitPosition.Equals(Vector3.zero))
         {
             Instantiate(vfxHit, hitPosition, vfxHit.transform.rotation);
         }
-        Vector3 forceDirection = (transform.position - hitPosition).normalized;
-        rigidbody.AddForce(forceDirection * 70, ForceMode.VelocityChange);
-        rigidbody.AddTorque(Random.insideUnitSphere * 4, ForceMode.VelocityChange);
+
+        if (isDisplaceable && rigidbody != null)
+        {
+            rigidbody.constraints = RigidbodyConstraints.None;
+            Vector3 forceDirection = (transform.position - hitPosition).normalized;
+            rigidbody.AddForce(forceDirection * 200, ForceMode.Impulse);
+            rigidbody.AddTorque(Random.insideUnitSphere * 100, ForceMode.Impulse);
+        }
     }
 }
