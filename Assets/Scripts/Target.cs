@@ -6,17 +6,7 @@ public class Target : MonoBehaviour
 {
     [SerializeField] private Transform vfxHit;
     [SerializeField] private bool isDisplaceable;
-    private List<AudioSource> soundsHit = new List<AudioSource>();
     new Rigidbody rigidbody;
-
-    private void Awake()
-    {
-        Transform soundsRoot = GameObject.Find("/Sound/WallHit").transform;
-        foreach (Transform item in soundsRoot)
-        {
-            soundsHit.Add(item.gameObject.GetComponent<AudioSource>());
-        }
-    }
 
     // Start is called before the first frame update
     void Start()
@@ -26,7 +16,7 @@ public class Target : MonoBehaviour
 
     public void Hit(Vector3 hitPosition)
     {
-        soundsHit[Random.Range(0, soundsHit.Count)].Play();
+        SoundManager.Instance.PlaySoundAt("WallHit" + Random.Range(1, 3), transform.position);
         if (!hitPosition.Equals(Vector3.zero))
         {
             Instantiate(vfxHit, hitPosition, vfxHit.transform.rotation);

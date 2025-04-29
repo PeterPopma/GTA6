@@ -31,10 +31,14 @@ public class Motorbike : MonoBehaviour
     public Transform WheelMeshR;
     public WheelCollider WheelColliderF;
     public WheelCollider WheelColliderR;        //  sidewaysFriction.stiffness -> how much the car drifts
-    public Vector3 wheelsOrientation;
+    public Vector3 RearWheelOrientation;
+    public Vector3 FrontWheelOrientation;
+    public bool frontWheelOrientationX;   // use x-axis for wheel rotation (otherwise z-axis is used)
 
     [Header("Effects")]
     public Transform smokePosition;
+    public GameObject fog;
+    public GameObject sparks;
 
     [Header("Sounds")]
     public AudioSource soundEngine;
@@ -57,6 +61,7 @@ public class Motorbike : MonoBehaviour
 
     void Start()
     {
-        rigidbody = GetComponent<Rigidbody>();
+        rigidbody = GetComponent<Rigidbody>(); 
+        fog.SetActive(false);
     }
 }

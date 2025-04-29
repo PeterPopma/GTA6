@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: b5fcb6edb24b4544dbcf0dad9462ee5b
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 8574412962073106934
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 213198
+  packageName: Unity Terrain - HDRP Demo Scene
+  packageVersion: 1.0.2
+  assetPath: Assets/TerrainDemoScene_HDRP/Terrain/Layers/Tidal_Pools_B.terrainlayer
+  uploadId: 531742

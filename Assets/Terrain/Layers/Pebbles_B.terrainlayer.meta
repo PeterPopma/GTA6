@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 4e32022d306550941935a9898d9a184c
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 8574412962073106934
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 213198
+  packageName: Unity Terrain - HDRP Demo Scene
+  packageVersion: 1.0.2
+  assetPath: Assets/TerrainDemoScene_HDRP/Terrain/Layers/Pebbles_B.terrainlayer
+  uploadId: 531742

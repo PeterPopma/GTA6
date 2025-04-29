@@ -5,8 +5,6 @@ public class Grenade : MonoBehaviour
     [SerializeField] float angularVelocity = 10000.0f;
     [SerializeField] float lifeTime = 3.4f;
     [SerializeField] private Transform vfxExplosion;
-    private AudioSource soundGrenadeBounce;
-    private AudioSource soundGrenadeExplosion;
     private Vector3 axisOfRotation;
     private Rigidbody myRigidbody;
     private Player player;
@@ -28,8 +26,6 @@ public class Grenade : MonoBehaviour
         myRigidbody.linearVelocity = velocity;
         //axisOfRotation = Random.onUnitSphere;
         axisOfRotation = new Vector3(1, 0.2f, 0.2f);
-        soundGrenadeExplosion = GameObject.Find("/Sound/GrenadeExplosion").GetComponent<AudioSource>();
-        soundGrenadeBounce = GameObject.Find("/Sound/GrenadeBounce").GetComponent<AudioSource>();
         cameraShake = GameObject.Find("FollowCamera").GetComponent<CameraShake>();
     }
 
@@ -67,7 +63,7 @@ public class Grenade : MonoBehaviour
                 }
             }
 
-            soundGrenadeExplosion.Play();
+            SoundManager.Instance.PlaySound("GrenadeExplosion");
             cameraShake.ShakeCamera(10, 12f);
             Instantiate(vfxExplosion, transform.position, Quaternion.identity);
             Destroy(this.gameObject);
@@ -78,7 +74,7 @@ public class Grenade : MonoBehaviour
     {
         if (other.GetComponent<Player>()==null)
         {
-            soundGrenadeBounce.Play();
+            SoundManager.Instance.PlaySound("GrenadeBounce");
         }
     }
 

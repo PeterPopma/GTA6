@@ -1,84 +1,96 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
+using UnityEngine.Splines.ExtrusionShapes;
 
 public class CarSpawner : MonoBehaviour
 {
-    [SerializeField] GameObject[] pfSpawnObjects;
-    [SerializeField] GameObject centerObject;
-    [SerializeField] Transform rootTransform;
+    [SerializeField] Transform spawnedCarsRoot;
+    [SerializeField] Transform waypointListsRoot;
+    [SerializeField] GameObject[] pfCars;
+    [SerializeField] float minimumDistanceOtherCars = 2;
+    [SerializeField] int[] weightFactors;
     [SerializeField] float secondsBetweenSpawns = 1;
     [SerializeField] int initialItems = 0;
-    [SerializeField] int maxItems = 100;
-    [SerializeField] float minX = -1500;
-    [SerializeField] float maxX = 1500;
-    [SerializeField] float minZ = -1500;
-    [SerializeField] float maxZ = 1500;
-    [SerializeField] float centerRadius;
-
+    [SerializeField] int maxItems = 10;
+    List<List<GameObject>> roads = new List<List<GameObject>>();
+    int startFromWaypointIndex;
     float timeLastSpawn;
-
 
     // Start is called before the first frame update
     void Start()
     {
         timeLastSpawn = Time.time;
+
+        foreach (Transform waypointList in waypointListsRoot)
+        {
+            List<GameObject> waypoints = new List<GameObject>();
+
+            foreach (Transform waypoint in waypointList)
+            {
+                waypoints.Add(waypoint.gameObject);
+            }
+
+            roads.Add(waypoints);
+        }
+
         for (int i = 0; i < initialItems; i++)
         {
-            SpawnNewObject();
+            SpawnNewCar();
         }
     }
 
-    private void SpawnNewObject()
+    private Vector3 SelectSpawnPosition(int selectedRoadIndex)
     {
-        int objectIndex = Random.Range(0, pfSpawnObjects.Length);
+        startFromWaypointIndex = Random.Range(0, roads[selectedRoadIndex].Count);
+        int headingToWaypointIndex = startFromWaypointIndex + 1;
+        if (headingToWaypointIndex >= roads[selectedRoadIndex].Count)
+        {
+            headingToWaypointIndex = 0;
+        }
+        float firstWaypointShare = Random.value;
+
+        return Vector3.Lerp(roads[selectedRoadIndex][startFromWaypointIndex].transform.position, roads[selectedRoadIndex][headingToWaypointIndex].transform.position, firstWaypointShare);
+    }
+
+    private void SpawnNewCar()
+    {
+        int objectIndex = Random.Range(0, pfCars.Length);
         int triesLeft = 10;
-        float x, y, z;
+        int selectedRoadIndex = Random.Range(0, roads.Count);
 
         Vector3 spawnPosition;
         do
         {
-            Vector3 spawnLocation;
             triesLeft--;
-            if (centerObject == null)
-            {
-                x = Random.value * (maxX - minX) + minX;
-                z = Random.value * (maxZ - minZ) + minZ;
-            }
-            else
-            {
-                x = centerObject.transform.position.x - centerRadius + Random.value * centerRadius * 2;
-                z = centerObject.transform.position.z - centerRadius + Random.value * centerRadius * 2;
-            }
-            spawnLocation = new Vector3(x, 0, z);
-            y = Terrain.activeTerrain.SampleHeight(spawnLocation);
-            spawnPosition = new Vector3(x,y,z);
-        } while (!NoOtherObjectsNearby(spawnPosition) && y<0 && triesLeft > 0);
-        GameObject newObject = Instantiate(pfSpawnObjects[objectIndex], spawnPosition,
+            spawnPosition = SelectSpawnPosition(selectedRoadIndex);
+        } while (!NoOtherCarsNearby(spawnPosition) && triesLeft > 0);
+        GameObject newObject = Instantiate(pfCars[objectIndex], spawnPosition,
                                                 Quaternion.identity);
 
-        newObject.transform.parent = rootTransform;
+        newObject.transform.parent = spawnedCarsRoot;
+        newObject.GetComponent<CarAI>().SetWayPoints(roads[selectedRoadIndex], startFromWaypointIndex);
+        newObject.GetComponent<CarAI>().SetAIActive(true);
         Game.Instance.Cars.Add(newObject);
     }
 
-    // Update is called once per frame
-    void Update()
+    void FixedUpdate()
     {
         if (secondsBetweenSpawns > 0 && 
             Time.time - timeLastSpawn > secondsBetweenSpawns && 
             Game.Instance.Cars.Count < maxItems)
         {
-            SpawnNewObject();
+            SpawnNewCar();
             timeLastSpawn = Time.time;
         }
     }
 
-    private bool NoOtherObjectsNearby(Vector3 position)
+    private bool NoOtherCarsNearby(Vector3 position)
     {
-        Collider[] colliders = Physics.OverlapSphere(position, 10);
-        foreach (var collider in colliders)
+        foreach (GameObject car in Game.Instance.Cars)
         {
-            if (!collider.gameObject.name.StartsWith("Ground"))
+            if ((car.transform.position - position).magnitude < minimumDistanceOtherCars)
             {
                 return false;
             }

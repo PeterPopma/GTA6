@@ -1,6 +1,5 @@
 using UnityEngine;
 using TMPro;
-using UnityEngine.InputSystem;
 using Unity.Cinemachine;
 
 public class MotorbikeController : MonoBehaviour
@@ -12,7 +11,6 @@ public class MotorbikeController : MonoBehaviour
     [SerializeField] TextMeshProUGUI textSpeed;
     [SerializeField] Material materialRearLight;
     [SerializeField] Transform vfxRoot;
-    [SerializeField] GameObject sparks;
     [SerializeField] private CinemachineCamera vcamPlayerFollow;
     [SerializeField] private bool useBalancingForce;
     [SerializeField] private bool useGyroscopicEffect;
@@ -23,14 +21,12 @@ public class MotorbikeController : MonoBehaviour
     [SerializeField] private bool useStabilizeBike;
     [SerializeField] private Transform vfxSmoke;
 
+    private Player player;
+    private Motorbike motorbike;
+
     public Color gizmoColor = Color.red; // Color of the marker
     public float gizmoSize = 0.1f; // Size of the marker
 
-    [Header("Input Values")]
-    public Vector2 move;
-    public Vector2 look;
-    public bool sprint;
-    private Motorbike motorbike;
     private const float _threshold = 0.01f;
     private float timeleftSmoke;
 
@@ -39,9 +35,8 @@ public class MotorbikeController : MonoBehaviour
     // cinemachine
     private float cinemachineTargetYaw;
     private float cinemachineTargetPitch;
-    private PlayerInput _playerInput;
 
-    private int viewDistance = 5;
+    private float viewDistance = 5;
 
     private bool isAccelerating;
 
@@ -70,35 +65,17 @@ public class MotorbikeController : MonoBehaviour
     WheelHit wheelHitInfo;
     private Skidmarks skidmarks;
 
-    public void OnMove(InputValue value)
-    {
-        move = value.Get<Vector2>();
-    }
-
-    public void OnLook(InputValue value)
-    {
-        look = value.Get<Vector2>();
-    }
-        
-    public void OnSprint(InputValue value)
-    {
-        sprint = value.isPressed;
-    }
-
-    public void OnEnterVehicle()
-    {
-        GetComponent<Player>().enabled = true;
-        ExitMotorbike();
-        GetComponent<Player>().ExitVehicle();
-    }
-
     void Awake()
     {
+        player = GetComponent<Player>();
         Cursor.visible = false;
-        skidmarks = GameObject.Find("Scripts/Skidmarks").GetComponent<Skidmarks>();
+        GameObject goSkidmarksScript = GameObject.Find("Scripts/Skidmarks");
+        if (goSkidmarksScript != null)
+        {
+            skidmarks = GameObject.Find("Scripts/Skidmarks").GetComponent<Skidmarks>();
+        }
         slipLastUpdateTime = Time.time;
         textSpeed.text = "";
-        _playerInput = GetComponent<PlayerInput>();
         Motorbike motorbike = GetComponent<Motorbike>();
         if (motorbike != null)
         {
@@ -106,15 +83,7 @@ public class MotorbikeController : MonoBehaviour
         }
     }
 
-    private bool IsCurrentDeviceMouse
-    {
-        get
-        {
-            return _playerInput.currentControlScheme == "KeyboardMouse";
-        }
-    }
-
-    public bool IsBraking { get => isBraking; set => isBraking = value; }
+     public bool IsBraking { get => isBraking; set => isBraking = value; }
     public float Speed { get => speed; set => speed = value; }
     public Motorbike Motorbike { get => motorbike; set => motorbike = value; }
 
@@ -137,6 +106,8 @@ public class MotorbikeController : MonoBehaviour
             motorbike.soundEngine.Play();
         }
         textSpeed.enabled = true;
+        motorbike.fog.SetActive(true); 
+        rigidbody.isKinematic = false;
     }
 
     public void ExitMotorbike()
@@ -145,7 +116,9 @@ public class MotorbikeController : MonoBehaviour
         {
             motorbike.driver.SetActive(false);
         }
+        motorbike.fog.SetActive(false);
         motorbike = null;
+        rigidbody.isKinematic = true;
     }
 
     void FixedUpdate()
@@ -185,7 +158,7 @@ public class MotorbikeController : MonoBehaviour
     {
         // Calculate the desired tilt angle with speed-based damping
         float adjustedMaxTilt = Mathf.Lerp(motorbike.maxTiltAngle, 10f, speed / motorbike.maxSpeed); // Reduce tilt at higher speeds
-        float desiredTilt = adjustedMaxTilt * (move.x * Mathf.Clamp(speed / motorbike.maxSpeed, 0f, 1f));
+        float desiredTilt = adjustedMaxTilt * (player.move.x * Mathf.Clamp(speed / motorbike.maxSpeed, 0f, 1f));
 
         // Smoothly rotate the bike body to simulate tilting
         Quaternion targetRotation = Quaternion.Euler(desiredTilt, motorbike.transform.eulerAngles.y, motorbike.transform.eulerAngles.z);
@@ -195,7 +168,7 @@ public class MotorbikeController : MonoBehaviour
     void ApplyBankingForce()
     {
         // Add force to simulate the bike banking during turns
-        Vector3 bankingForce = transform.right * move.x * speed * motorbike.bankingForceMultiplier;
+        Vector3 bankingForce = transform.right * player.move.x * speed * motorbike.bankingForceMultiplier;
         rigidbody.AddForce(bankingForce, ForceMode.Force);
     }
     void SetWheelFrictionStiffness(WheelCollider wheel, float newStiffness)
@@ -207,7 +180,7 @@ public class MotorbikeController : MonoBehaviour
 
     void AdjustSidewaysFriction()
     {
-        float stiffness = Mathf.Lerp(1f, motorbike.sidewaysFrictionMultiplier, Mathf.Abs(move.x));
+        float stiffness = Mathf.Lerp(1f, motorbike.sidewaysFrictionMultiplier, Mathf.Abs(player.move.x));
         SetWheelFrictionStiffness(frontWheelCollider, stiffness);
         SetWheelFrictionStiffness(frontWheelCollider, stiffness);
     }
@@ -233,21 +206,33 @@ public class MotorbikeController : MonoBehaviour
 
     private void Update()
     {
+        if (motorbike != null)
+        {
+            player.transform.position = motorbike.transform.position;
+        }
         UpdateVisualWheels();
     }
+
+    private void ApplySkidmarks()
+    {
+        if (skidmarks!=null)
+        {
+            if (skidmarkStrength > 0 && rearWheelCollider.GetGroundHit(out wheelHitInfo))
+            {
+                // Skid
+                Vector3 skidPoint = wheelHitInfo.point + (rigidbody.linearVelocity * (Time.time - slipLastUpdateTime));
+                lastSkid = skidmarks.AddSkidMark(skidPoint, wheelHitInfo.normal, skidmarkStrength, lastSkid);
+            }
+            else
+            {
+                lastSkid = -1;
+            }
+        }
+    }
+
     protected void LateUpdate()
     {
-        if (skidmarkStrength>0 && rearWheelCollider.GetGroundHit(out wheelHitInfo))
-        {
-            // Skid
-            Vector3 skidPoint = wheelHitInfo.point + (rigidbody.linearVelocity * (Time.time - slipLastUpdateTime));
-            lastSkid = skidmarks.AddSkidMark(skidPoint, wheelHitInfo.normal, skidmarkStrength, lastSkid);
-        }
-        else
-        {
-            lastSkid = -1;
-        }
-
+        ApplySkidmarks();
         CameraRotation();
     }
 
@@ -258,7 +243,7 @@ public class MotorbikeController : MonoBehaviour
             return;
         }
 
-        if (move.y != 0)
+        if (player.move.y != 0)
         {
             if (currentEngineVolume < 1)
             {
@@ -351,7 +336,7 @@ public class MotorbikeController : MonoBehaviour
 
     private void ApplyBrakes()
     {
-        if (!isBraking && move.y < 0 && IsMovingForward())
+        if (!isBraking && player.move.y < 0 && IsMovingForward())
         {
             isBraking = true;
             currentEngineVolume = 0;
@@ -375,7 +360,7 @@ public class MotorbikeController : MonoBehaviour
             rigidbody.linearDamping = motorbike.brakingDrag;
             ApplySpinTorque();
 
-            if (move.y >= 0 || !IsMovingForward())
+            if (player.move.y >= 0 || !IsMovingForward())
             {
                 isBraking = false;
                 materialRearLight.SetFloat("_EmissiveExposureWeight", 0.9f);
@@ -418,19 +403,22 @@ public class MotorbikeController : MonoBehaviour
                 newEffect.parent = vfxRoot;
             }
         }
-        if (move.y > 0)
+        if (motorbike.sparks != null)
         {
-            sparks.SetActive(true);
-        }
-        else
-        {
-            sparks.SetActive(false);
+            if (player.move.y > 0)
+            {
+                motorbike.sparks.SetActive(true);
+            }
+            else
+            {
+                motorbike.sparks.SetActive(false);
+            }
         }
     }
 
     private void HandleMotor()
     {
-        if (move.y != 0)
+        if (player.move.y != 0)
         {
             isAccelerating = true;
         }
@@ -440,13 +428,13 @@ public class MotorbikeController : MonoBehaviour
         }
 
         // Apply motor torque to the rear wheels
-        rearWheelCollider.motorTorque = move.y * motorbike.motorForce;
+        rearWheelCollider.motorTorque = player.move.y * motorbike.motorForce;
     }
 
     private void HandleSteering()
     {
         // Adjust the steer angle based on input direction
-        if (move.x != 0)
+        if (player.move.x != 0)
         {
             float speedSlowDownFactor = 1f;
             if (speed > motorbike.maxSpeed / 10)
@@ -454,7 +442,7 @@ public class MotorbikeController : MonoBehaviour
                 // slow down the steering by a factor of max 10 
                 speedSlowDownFactor = 1 / (10 * (speed / motorbike.maxSpeed));
             }
-            currentSteerAngle += move.x * motorbike.steerSpeed * Time.fixedDeltaTime * speedSlowDownFactor;
+            currentSteerAngle += player.move.x * motorbike.steerSpeed * Time.fixedDeltaTime * speedSlowDownFactor;
             currentSteerAngle = Mathf.Clamp(currentSteerAngle, -motorbike.maxSteerAngle, motorbike.maxSteerAngle);
         }
         else
@@ -464,70 +452,65 @@ public class MotorbikeController : MonoBehaviour
         }
 
         // Apply rotation to the steering mechanism only on the Y-axis
-        steering.localRotation = Quaternion.AngleAxis(currentSteerAngle, Vector3.up);
+        steering.localRotation = Quaternion.AngleAxis(currentSteerAngle, Vector3.up); 
+        Quaternion additionalRotation = Quaternion.Euler(motorbike.FrontWheelOrientation);
+        steering.localRotation *= additionalRotation;
 
         frontWheelCollider.steerAngle = currentSteerAngle;
     }
 
     private void UpdateVisualWheels()
     {
-        //   UpdateWheelPose(frontWheelCollider, frontWheelTransform, true);
-        frontWheelTransform.Rotate(new Vector3(0, 0, 100*speed*Time.deltaTime));
-        UpdateWheelPose(rearWheelCollider, rearWheelTransform, false);
+        if (motorbike.frontWheelOrientationX)
+        {
+            frontWheelTransform.Rotate(new Vector3(-100 * speed * Time.deltaTime, 0, 0), Space.Self);
+        }
+        else
+        {
+            frontWheelTransform.Rotate(new Vector3(0, 0, 100 * speed * Time.deltaTime), Space.Self);
+        }
+        UpdateRearWheelPose(rearWheelCollider, rearWheelTransform);
     }
 
-    private void UpdateWheelPose(WheelCollider collider, Transform wheelTransform, bool isFrontWheel)
+    private void UpdateRearWheelPose(WheelCollider collider, Transform wheelTransform)
     {
+        // Get position and rotation from the WheelCollider
         Vector3 pos;
         Quaternion rot;
         collider.GetWorldPose(out pos, out rot);
 
-        // Update position
+        // Update wheel position
         wheelTransform.position = pos;
 
-        // Update rotation for the wheel based on speed
-        float wheelRotationAngle = move.y * motorbike.motorForce * Time.deltaTime / collider.radius;
-        wheelTransform.Rotate(wheelRotationAngle, 0, 0, Space.Self);
+        // Apply the rotation from the WheelCollider
+        wheelTransform.rotation = rot;
 
-        // Correct rotation by aligning to the wheel collider's rotation
-        wheelTransform.rotation = rot * Quaternion.Euler(motorbike.wheelsOrientation);
+        // Apply additional orientation adjustment using RearWheelOrientation (Vector3)
+        if (motorbike.RearWheelOrientation != Vector3.zero)
+        {
+            Quaternion additionalRotation = Quaternion.Euler(motorbike.RearWheelOrientation);
+            wheelTransform.rotation *= additionalRotation;
+        }
+
+        // Apply spin for wheel rotation based on movement
+        float wheelRotationAngle = player.move.y * motorbike.motorForce * Time.deltaTime / collider.radius;
+        wheelTransform.Rotate(wheelRotationAngle, 0, 0, Space.Self);
     }
 
     private void CameraRotation()
     {
         // if there is an input and camera position is not fixed
-        if (look.sqrMagnitude >= _threshold)
+        if (player.look.sqrMagnitude >= _threshold)
         {
             // Don't multiply mouse input by Time.deltaTime;
-            float deltaTimeMultiplier = IsCurrentDeviceMouse ? 1.0f : Time.deltaTime;
+            float deltaTimeMultiplier = player.isCurrentDeviceMouse() ? 1.0f : Time.deltaTime;
 
-            cinemachineTargetYaw += look.x * deltaTimeMultiplier;
-            cinemachineTargetPitch += look.y * deltaTimeMultiplier;
+            cinemachineTargetYaw += player.look.x * deltaTimeMultiplier;
+            cinemachineTargetPitch += player.look.y * deltaTimeMultiplier;
         }
 
         // Cinemachine will follow this target
         CinemachineCameraTarget.transform.rotation = Quaternion.Euler(cinemachineTargetPitch, cinemachineTargetYaw, 0.0f);
-    }
-
-    public void OnChangeView()
-    {
-        if (viewDistance == 1)
-        {
-            viewDistance = 2;
-        }
-        else if (viewDistance == 2)
-        {
-            viewDistance = 5;
-        }
-        else if (viewDistance == 5)
-        {
-            viewDistance = 10;
-        }
-        else
-        {
-            viewDistance = 1;
-        }
-        UpdateView();
     }
 
     public void UpdateView()

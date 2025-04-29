@@ -19,8 +19,6 @@ public class Enemy : MonoBehaviour {
 	[SerializeField] private Transform effectsRoot;
     [SerializeField] private new Rigidbody rigidbody;
 
-    private List<AudioClip> clipsScreamMale = new List<AudioClip>();
-    private AudioSource soundGunshot;
 	private Vector3 playerPosition;
 	private bool isHit;
 	private Animator animator;
@@ -48,27 +46,11 @@ public class Enemy : MonoBehaviour {
         characterController = GetComponent<CharacterController>();
     }
 
-    void Start () {
-        Transform soundsRoot = GameObject.Find("/Sound/MaleScreams").transform;
-        foreach (Transform item in soundsRoot)
-        {
-            AudioClip clip = item.gameObject.GetComponent<AudioSource>().clip;
-            clipsScreamMale.Add(clip);
-        }
-        soundGunshot = GameObject.Find("/Sound/Gunshot2").GetComponent<AudioSource>();
-        playerPosition = GameObject.Find("Player").transform.position;
-    }
-
-    private void Scream()
-    {
-        AudioSource.PlayClipAtPoint(clipsScreamMale[UnityEngine.Random.Range(0, clipsScreamMale.Count)], transform.position);
-    }
-
     public void Hit(Vector3 hitPosition)
     {
         isHit = true;
         timeLeftDying = TIME_BEFORE_DYING_PLAYER_IS_REMOVED;
-        Scream();
+        SoundManager.Instance.PlaySoundAt("MaleScream" + UnityEngine.Random.Range(1, 11), transform.position);
         characterController.enabled = false;
         animator.enabled = false;
         Vector3 forceDirection = (hitPosition - transform.position).normalized;
@@ -87,7 +69,7 @@ public class Enemy : MonoBehaviour {
             if (timeLeftFiring < 4 && !firedGun)
             {
                 gunFire.SetActive(true);
-                AudioSource.PlayClipAtPoint(soundGunshot.clip, spawnFirePosition.position);
+                SoundManager.Instance.PlaySoundAt("Gunshot", transform.position); 
                 firedGun = true;
             }
             if (timeLeftFiring < 3)

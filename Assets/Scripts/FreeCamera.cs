@@ -9,13 +9,11 @@ public class FreeCamera : MonoBehaviour
 
     [SerializeField] private float moveByKeySpeed = 4f; 
     [SerializeField] private float lookSpeed = 2f;
-    [SerializeField] private float zoomSpeed = 2f;
     Vector3 cameraPosition;
 
     private float cameraYaw = 0f;
     private float cameraPitch = 0f;
     private float cameraRoll = 0f;
-    private float cameraDistance = 3f;
     private bool buttonCameraForward;
     private bool buttonCameraBack;
     private bool buttonCameraLeft;
@@ -136,6 +134,10 @@ public class FreeCamera : MonoBehaviour
 
     private void Update()
     {
+        if (!vcamMainCamera.isActiveAndEnabled)
+        {
+            return;
+        }
         if (movingCamera)
         {
             moveSpeed = moveByKeySpeed; // * Mathf.Pow(2, (Time.time - timeMovingStarted));
@@ -149,7 +151,6 @@ public class FreeCamera : MonoBehaviour
         {
             cameraRoll += Time.deltaTime * 80;
         }
-        Debug.Log(cameraDistance);
         if (buttonCameraForward)
         {
             cameraPosition += transform.forward * Time.deltaTime * moveSpeed;

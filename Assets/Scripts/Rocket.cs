@@ -1,3 +1,4 @@
+using NUnit.Framework.Constraints;
 using UnityEngine;
 
 public class Rocket : MonoBehaviour
@@ -5,22 +6,22 @@ public class Rocket : MonoBehaviour
     [SerializeField] private Transform vfxHit;
     [SerializeField] private Transform vfxSmoke;
     [SerializeField] private Transform vfxFire;
-    private AudioSource soundRocketExplosion;
     private Rigidbody myRigidbody;
     private float timeLastSmoke;
 
     private void Awake()
     {
         myRigidbody = GetComponent<Rigidbody>();
-        soundRocketExplosion = GameObject.Find("/Sound/RocketExplosion").GetComponent<AudioSource>();
     }
 
     void Start()
     {
         Vector3 direction = transform.forward;
-        direction = Quaternion.Euler(5, 0, 0) * direction;
+        if (direction.y < 0)
+        {
+            direction = new Vector3(direction.x, 0, direction.z);
+        }
         myRigidbody.linearVelocity = direction * 80f;
-//        transform.Rotate(Vector3.left, 90);
     }
 
     private void Update()
@@ -37,7 +38,6 @@ public class Rocket : MonoBehaviour
         Vector3 explosionPos = transform.position;
         Collider[] colliders = Physics.OverlapSphere(explosionPos, 5.0f);       // todo: add layer mask to exclude bodyparts layer
 
-        bool somethingHit = false;
         foreach (Collider collider in colliders)
         {
             if (collider.gameObject.GetComponent<NPC>()!=null)
@@ -71,7 +71,7 @@ public class Rocket : MonoBehaviour
                 }
             }
         }
-        soundRocketExplosion.Play();
+        SoundManager.Instance.PlaySound("RocketExplosion");
         Instantiate(vfxHit, transform.position, Quaternion.identity);
         Destroy(gameObject);
     }

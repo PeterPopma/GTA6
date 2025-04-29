@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Cinemachine;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Animations.Rigging;
 using UnityEngine.InputSystem;
@@ -55,13 +56,6 @@ public class Player : MonoBehaviour
     private Driveable driveable;
     private GameObject objectInHand;
     private UI UIScript;
-    private AudioSource soundPistolShot;
-    private AudioSource soundRifleShot;
-    private AudioSource soundWoosh;
-    private AudioSource soundPunch;
-    private AudioSource soundThrow;
-    private AudioSource soundSwitchWeapon;
-    private AudioSource soundRocketLauncher;
     private bool smokeCreated;
     private bool isAiming;
     private Animator animator;
@@ -87,7 +81,7 @@ public class Player : MonoBehaviour
     private int health = 100;
     private int timesStuck;
     private LayerMask layerMaskVehicle;
-    private List<AudioClip> clipsScreamMale = new List<AudioClip>();
+    private ThirdPersonController thirdPersonController;
 
     [Header("Character Input Values")]
     public Vector2 move;
@@ -104,10 +98,16 @@ public class Player : MonoBehaviour
     public float TimeLeftPunching { get => timeLeftPunching; set => timeLeftPunching = value; }
     public GameObject ObjectInHand { get => objectInHand; set => objectInHand = value; }
 
+
     private void Awake()
     {
         rigBuilder = gameObject.GetComponent<RigBuilder>();
         layerMaskVehicle = LayerMask.GetMask("Vehicle");
+    }
+
+    public bool isCurrentDeviceMouse()
+    {
+        return thirdPersonController.IsCurrentDeviceMouse;
     }
 
     // Start is called before the first frame update
@@ -121,19 +121,6 @@ public class Player : MonoBehaviour
         gunFirePistol.SetActive(false);
         gunFireRifle.SetActive(false);
         aimCursor.enabled = false;
-        soundPistolShot = GameObject.Find("/Sound/Gunshot").GetComponent<AudioSource>();
-        soundRifleShot = GameObject.Find("/Sound/Gunshot2").GetComponent<AudioSource>();
-        soundWoosh = GameObject.Find("/Sound/Woosh").GetComponent<AudioSource>();
-        soundPunch = GameObject.Find("/Sound/Punch").GetComponent<AudioSource>();
-        soundThrow = GameObject.Find("/Sound/Throw").GetComponent<AudioSource>();
-        soundSwitchWeapon = GameObject.Find("/Sound/SwitchWeapon").GetComponent<AudioSource>();
-        soundRocketLauncher = GameObject.Find("/Sound/RocketLauncher").GetComponent<AudioSource>();
-        Transform soundsRoot = GameObject.Find("/Sound/MaleScreams").transform;
-        foreach (Transform item in soundsRoot)
-        {
-            AudioClip clip = item.gameObject.GetComponent<AudioSource>().clip;
-            clipsScreamMale.Add(clip);
-        }
         characterController = gameObject.GetComponent<CharacterController>();
         baseballBat.SetActive(false);
         rigBuilder.layers[0].active = false;
@@ -144,6 +131,7 @@ public class Player : MonoBehaviour
         imageIconWeapon.GetComponent<Image>().sprite = Resources.Load<Sprite>("icon_fist");
         UIScript = GameObject.Find("/Scripts/UI").GetComponent<UI>();
         sliderHealthBar.value = 1 - (health / 100f);
+        thirdPersonController = GetComponent<ThirdPersonController>();
     }
 
     public void Hit()
@@ -157,16 +145,12 @@ public class Player : MonoBehaviour
         timeLeftBlood = 0.5f;
         health -= 5;
         sliderHealthBar.value = 1 - (health / 100f);
-        Scream();
+        SoundManager.Instance.PlaySoundAt("MaleScream" + UnityEngine.Random.Range(1, 11), transform.position);
         if (health <= 0)
         {
             Explode(0);
             timeLeftDying = 4;
         }
-    }
-    private void Scream()
-    {
-        AudioSource.PlayClipAtPoint(clipsScreamMale[Random.Range(0, clipsScreamMale.Count)], transform.position);
     }
 
     public void PutObjectInHand(GameObject objectInHand)
@@ -276,7 +260,7 @@ public class Player : MonoBehaviour
                 float hitDistance = (transform.position - hitPosition).sqrMagnitude;
                 if (hitDistance < 16f && hitTransForm!=null)
                 {
-                    soundPunch.Play();
+                    SoundManager.Instance.PlaySoundAt("Punch", transform.position);
                     CheckHit();
                 }
             }
@@ -306,7 +290,7 @@ public class Player : MonoBehaviour
                 thrownWeapon = true;
                 if (activeWeapon == WEAPON_GRENADE)
                 {
-                    soundThrow.Play();
+                    SoundManager.Instance.PlaySoundAt("Throw", transform.position);
                     Instantiate(pfGrenade, rightHandPosition.transform.position, Quaternion.LookRotation(transform.forward, Vector3.up));
                 }
             }
@@ -564,13 +548,13 @@ public class Player : MonoBehaviour
                 timeLeftPunching = 1.2f;
                 animator.Play("Punch", LAYER_PUNCH, 0f);
                 animator.SetLayerWeight(LAYER_PUNCH, 1f);
-                soundWoosh.Play();
+                SoundManager.Instance.PlaySoundAt("Woosh", transform.position);
                 hitEnemy = false;
             }
             if (activeWeapon == WEAPON_PISTOL)
             {
                 animator.Play("FirePistol", LAYER_FIREPISTOL, 0);
-                soundPistolShot.Play();
+                SoundManager.Instance.PlaySoundAt("Gunshot", transform.position);
                 ShootGun(gunFirePistol);
             }
             if (activeWeapon == WEAPON_RIFLE)
@@ -601,7 +585,7 @@ public class Player : MonoBehaviour
             if (activeWeapon == WEAPON_BASEBALLBAT)
             {
                 timeLeftPunching = 1.2f;
-                soundWoosh.Play();
+                SoundManager.Instance.PlaySoundAt("Woosh", transform.position);
                 animator.Play("Strike", LAYER_STRIKE, 0.05f);
                 animator.SetLayerWeight(LAYER_STRIKE, 1f);
                 hitEnemy = false;
@@ -617,7 +601,7 @@ public class Player : MonoBehaviour
     {
         animator.Play("FireRifle", LAYER_FIRERIFLE, 0);
         animator.SetLayerWeight(LAYER_FIRERIFLE, 1);
-        soundRifleShot.Play();
+        SoundManager.Instance.PlaySoundAt("Rifleshot", transform.position);
         ShootGun(gunFireRifle);
     }
 
@@ -625,7 +609,7 @@ public class Player : MonoBehaviour
     {
         animator.Play("FireRifle", LAYER_FIRERIFLE, 0);
         animator.SetLayerWeight(LAYER_FIRERIFLE, 1);
-        soundRocketLauncher.Play();
+        SoundManager.Instance.PlaySoundAt("RocketLauncher", transform.position);
         Instantiate(pfRocket, rocketSpawnPosition.position, Quaternion.LookRotation(aimDirection, Vector3.up));
         Instantiate(vfxRocketSmoke, transform.position, Quaternion.identity);
     }
@@ -649,7 +633,7 @@ public class Player : MonoBehaviour
 
     private void OnWeaponSelect()
     {
-        soundSwitchWeapon.Play();
+        SoundManager.Instance.PlaySoundAt("SwitchWeapon", transform.position);
         activeWeapon++;
         animator.SetLayerWeight(LAYER_PUNCH, 0f);
         animator.SetLayerWeight(LAYER_AIMPISTOL, 0f);
@@ -735,6 +719,7 @@ public class Player : MonoBehaviour
             {
                 if (driveable.gameObject.GetComponent<Car>() != null)
                 {
+                    driveable.gameObject.GetComponent<CarAI>().SetAIActive(false);
                     GetComponent<CarController>().SetCar(driveable.gameObject.GetComponent<Car>());
                     GetComponent<CarController>().enabled = true;
                     GetComponent<AirplaneController>().enabled = false;
@@ -758,7 +743,7 @@ public class Player : MonoBehaviour
                     Game.Instance.ShowMessage("Accelerate: +   Decelerate: -   Yaw Left: <   Yaw Right: >", 20);
                 }
                 animator.enabled = false;
-                GetComponent<ThirdPersonController>().enabled = false;
+                thirdPersonController.enabled = false;
                 GetComponent<CapsuleCollider>().enabled = false;
                 GetComponent<CharacterController>().enabled = false;
                 meshRoot.SetActive(false);
@@ -782,6 +767,7 @@ public class Player : MonoBehaviour
         else if (GetComponent<MotorbikeController>().Motorbike != null)
         {
             transform.position = GetComponent<MotorbikeController>().Motorbike.transform.position + new Vector3(2, 0, 0);
+            GetComponent<MotorbikeController>().ExitMotorbike();
             GetComponent<MotorbikeController>().enabled = false;
         }
         else if (GetComponent<AirplaneController>().Airplane != null)
@@ -791,7 +777,7 @@ public class Player : MonoBehaviour
             Game.Instance.SetFollowCameraToPlayer();
         }
         animator.enabled = true;
-        GetComponent<ThirdPersonController>().enabled = true;
+        thirdPersonController.enabled = true;
         GetComponent<CapsuleCollider>().enabled = true;
         GetComponent<CharacterController>().enabled = true;
         meshRoot.SetActive(true);
@@ -806,8 +792,14 @@ public class Player : MonoBehaviour
 
     public void OnChangeView()
     {
-        if (Game.Instance.ViewDistance == 1)
+        if (Game.Instance.ViewDistance == 0.5)
         {
+            vcamPlayerFollow.Lens.FieldOfView = 30;
+            Game.Instance.ViewDistance = 1;
+        }
+        else if (Game.Instance.ViewDistance == 1)
+        {
+            vcamPlayerFollow.Lens.FieldOfView = 60;
             Game.Instance.ViewDistance = 2;
         }
         else if (Game.Instance.ViewDistance == 2)
@@ -820,7 +812,8 @@ public class Player : MonoBehaviour
         }
         else
         {
-            Game.Instance.ViewDistance = 1;
+            Game.Instance.ViewDistance = 0.5f;
+            vcamPlayerFollow.Lens.FieldOfView = 20;
         }
         Game.Instance.ShowMessage("View Distance: " + Game.Instance.ViewDistance);
         UpdateView();
@@ -842,15 +835,15 @@ public class Player : MonoBehaviour
 
     public void OnToggleSuperSpeed()
     {
-        if (gameObject.GetComponent<ThirdPersonController>().SprintSpeed < 300)
+        if (thirdPersonController.SprintSpeed < 300)
         {
-            gameObject.GetComponent<ThirdPersonController>().SprintSpeed = 300;
+            thirdPersonController.SprintSpeed = 300;
         }
         else
         {
-            gameObject.GetComponent<ThirdPersonController>().SprintSpeed = 16;
+            thirdPersonController.SprintSpeed = 16;
         }
-        Game.Instance.ShowMessage("Sprint Speed: " + gameObject.GetComponent<ThirdPersonController>().SprintSpeed);
+        Game.Instance.ShowMessage("Sprint Speed: " + thirdPersonController.SprintSpeed);
     }
 
     public void OnJump(InputValue value)

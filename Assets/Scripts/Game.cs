@@ -30,7 +30,7 @@ public class Game : MonoBehaviour
     string missionText;
     bool showMiniMap = true;
     bool showAchievements = false;
-    int viewDistance = 5;
+    float viewDistance = 5;
     CinemachineCamera cameraFollow;
     CinemachineCamera cameraFreeView;
     int wantedLevel = 4;
@@ -44,7 +44,7 @@ public class Game : MonoBehaviour
     public List<GameObject> Gems { get => gems; set => gems = value; }
     public GameObject EffectsParent { get => effectsParent; set => effectsParent = value; }
     public bool ShowMiniMap { get => showMiniMap; set => showMiniMap = value; }
-    public int ViewDistance { get => viewDistance; set => viewDistance = value; }
+    public float ViewDistance { get => viewDistance; set => viewDistance = value; }
     public Terrain MainTerrain { get => mainTerrain; set => mainTerrain = value; }
     public int WantedLevel { get => wantedLevel; set => wantedLevel = value; }
     public bool UseFreeCamera { get => useFreeCamera; set => useFreeCamera = value; }

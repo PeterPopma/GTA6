@@ -1,6 +1,5 @@
 using TMPro;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 public class CarController : MonoBehaviour
 {
@@ -23,7 +22,6 @@ public class CarController : MonoBehaviour
     // cinemachine
     private float cinemachineTargetYaw;
     private float cinemachineTargetPitch;
-    private PlayerInput _playerInput;
 
     private bool isAccelerating;
 
@@ -60,15 +58,6 @@ public class CarController : MonoBehaviour
     {
         textSpeed.text = "";
         player = GetComponent<Player>();
-        _playerInput = GetComponent<PlayerInput>();
-    }
-
-    private bool IsCurrentDeviceMouse
-    {
-        get
-        {
-            return _playerInput.currentControlScheme == "KeyboardMouse";
-        }
     }
 
     public bool IsBraking { get => isBraking; set => isBraking = value; }
@@ -167,7 +156,10 @@ public class CarController : MonoBehaviour
 
     private void Update()
     {
-        player.transform.position = car.transform.position;
+        if (car != null)
+        {
+            player.transform.position = car.transform.position;
+        }
     }
 
     private void UpdateEngineSound()
@@ -451,7 +443,7 @@ public class CarController : MonoBehaviour
         if (player.look.sqrMagnitude >= _threshold)
         {
             // Don't multiply mouse input by Time.deltaTime;
-            float deltaTimeMultiplier = IsCurrentDeviceMouse ? 1.0f : Time.deltaTime;
+            float deltaTimeMultiplier = player.isCurrentDeviceMouse() ? 1.0f : Time.deltaTime;
 
             cinemachineTargetYaw += player.look.x * deltaTimeMultiplier;
             cinemachineTargetPitch += player.look.y * deltaTimeMultiplier;

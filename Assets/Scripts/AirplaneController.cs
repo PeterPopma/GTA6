@@ -10,7 +10,6 @@ public class AirplaneController : MonoBehaviour
 	// cinemachine
 	private float cinemachineTargetYaw;
 	private float cinemachineTargetPitch;
-	private PlayerInput _playerInput;
 	private const float _threshold = 0.01f;
 
 	private const float MINIMUM_FLY_SPEED = 30;
@@ -55,19 +54,10 @@ public class AirplaneController : MonoBehaviour
     private void Awake()
 	{
 		player = GetComponent<Player>();
-		_playerInput = GetComponent<PlayerInput>();
 	}
 
 	private void Start()
 	{
-	}
-
-	private bool IsCurrentDeviceMouse
-	{
-		get
-		{
-			return _playerInput.currentControlScheme == "KeyboardMouse";
-		}
 	}
 
 	public void SetAirplane(Airplane airplane)
@@ -306,7 +296,7 @@ public class AirplaneController : MonoBehaviour
 		if (player.look.sqrMagnitude >= _threshold)
 		{
 			// Don't multiply mouse input by Time.deltaTime;
-			float deltaTimeMultiplier = IsCurrentDeviceMouse ? 1.0f : Time.deltaTime;
+			float deltaTimeMultiplier = player.isCurrentDeviceMouse() ? 1.0f : Time.deltaTime;
 
 			cinemachineTargetYaw += player.look.x * deltaTimeMultiplier;
 			cinemachineTargetPitch += player.look.y * deltaTimeMultiplier;

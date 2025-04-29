@@ -19,10 +19,10 @@ TagManager:
   - BodyParts
   - Projectile
   - Vehicle
-  - 
-  - 
-  - 
-  - 
+  - Road1Left
+  - Road1Right
+  - Road2Left
+  - Road2Right
   - 
   - 
   - 
