@@ -70,7 +70,7 @@ public class SoundManager : MonoBehaviour
     {
         if (!soundPrefabs.ContainsKey(soundName))
         {
-            Debug.LogWarning($"Sound '{soundName}' not found!");
+            Debug.Log($"Sound '{soundName}' not found!");
             return null;
         }
 

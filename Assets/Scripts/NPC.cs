@@ -493,6 +493,8 @@ public class NPC : MonoBehaviour
         SetNPCState(NPCState_.Dying, TIME_BEFORE_DYING_PLAYER_IS_REMOVED);
         characterController.enabled = false;
         animator.enabled = false;
+        rigidbody.AddForce(new Vector3(0, 30, 0), ForceMode.VelocityChange);
+        rigidbody.AddTorque(Random.insideUnitSphere * 30, ForceMode.VelocityChange);
     }
 
     private void Move()

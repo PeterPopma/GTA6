@@ -12,7 +12,7 @@ public class Game : MonoBehaviour
     [SerializeField] Terrain mainTerrain;
     [SerializeField] private GameObject effectsParent;
     [SerializeField] GameObject panelMission;
-    [SerializeField] GameObject canvasMain;
+    [SerializeField] GameObject uiPanel;
     [SerializeField] TextMeshProUGUI textMission;
     [SerializeField] TextMeshProUGUI textMessage;
     [SerializeField] TextMeshProUGUI textDiamonds;
@@ -80,7 +80,7 @@ public class Game : MonoBehaviour
         if (useFreeCamera)
         {
             ShowMessage("Free camera on");
-            canvasMain.SetActive(false);
+            uiPanel.SetActive(false);
             cameraFreeView.gameObject.GetComponent<FreeCamera>().CameraPosition = Camera.main.transform.position;
             cameraFreeView.enabled = true; 
             cameraFreeView.gameObject.GetComponent<PlayerInput>().enabled = true;
@@ -88,7 +88,7 @@ public class Game : MonoBehaviour
         else
         {
             ShowMessage("Free camera off");
-            canvasMain.SetActive(true);
+            uiPanel.SetActive(true);
             cameraFreeView.enabled = false;
             cameraFreeView.gameObject.GetComponent<PlayerInput>().enabled = false;
         }

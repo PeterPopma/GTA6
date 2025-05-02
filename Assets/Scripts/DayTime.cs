@@ -10,6 +10,7 @@ public class DayTime : MonoBehaviour
     [SerializeField] TextMeshProUGUI textDayTime;
     [SerializeField] Light sunLight;
     [SerializeField] Light moonLight;
+    [SerializeField] GameObject nightLight;
     [SerializeField] GameObject moonMesh;
     [SerializeField] Volume volumeSkyFog;
     [SerializeField] Transform lightRoot;
@@ -25,7 +26,7 @@ public class DayTime : MonoBehaviour
 
     private void Start()
     {
-        minuteOfDay = 1200; // MINUTES_PER_DAY / 2;
+        minuteOfDay = MINUTES_PER_DAY / 2;
         SetLights(false); 
         moonMesh.SetActive(false);
     }
@@ -79,6 +80,7 @@ public class DayTime : MonoBehaviour
     {
         this.isNight = isNight;
         moonMesh.SetActive(isNight);
+        nightLight.SetActive(isNight);
         if (volumeSkyFog.profile.TryGet<VisualEnvironment>(out VisualEnvironment env))
         {
             if (isNight)
@@ -89,7 +91,7 @@ public class DayTime : MonoBehaviour
             else
             {
                 env.skyType.value = Convert.ToInt32(SkyType.PhysicallyBased);
-                sunLight.intensity = 450000;
+                sunLight.intensity = 600000;
             }
         }
     }

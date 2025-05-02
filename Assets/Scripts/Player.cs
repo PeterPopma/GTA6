@@ -23,6 +23,7 @@ public class Player : MonoBehaviour
     [SerializeField] private CinemachineCamera vcamPlayerFollow;
     [SerializeField] private CinemachineCamera vcamRagdoll;
     [SerializeField] private GameObject bloodSpawnPosition;
+    [SerializeField] private Transform shellSpawnPosition;
     [SerializeField] private GameObject pfBullet;
     [SerializeField] private GameObject gunFirePistol;
     [SerializeField] private GameObject gunFireRifle;
@@ -194,7 +195,7 @@ public class Player : MonoBehaviour
             smokeCreated = true;
             Transform newEffect = Instantiate(vfxFireGun, rightHandPosition.transform.position, Quaternion.identity);
             newEffect.parent = Game.Instance.EffectsParent.transform;
-            Instantiate(pfShell, rifle.transform.position, Quaternion.LookRotation(transform.forward, Vector3.up));
+            Instantiate(pfShell, shellSpawnPosition.position, Quaternion.LookRotation(transform.forward, Vector3.up));
             gunFireRifle.SetActive(true);
         }
         if (timeLeftShooting < 0.55)

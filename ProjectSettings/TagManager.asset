@@ -8,6 +8,7 @@ TagManager:
   - Projectile
   - CinemachineTarget
   - Car
+  - Terrain
   layers:
   - Default
   - TransparentFX

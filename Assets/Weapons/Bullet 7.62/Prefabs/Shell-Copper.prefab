@@ -11,8 +11,7 @@ GameObject:
   - component: {fileID: 401092}
   - component: {fileID: 3320398}
   - component: {fileID: 2371114}
-  - component: {fileID: 9588696}
-  m_Layer: 6
+  m_Layer: 8
   m_Name: Shell_LOD0(Clone)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -87,28 +86,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!95 &9588696
-Animator:
-  serializedVersion: 7
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 106602}
-  m_Enabled: 1
-  m_Avatar: {fileID: 9000000, guid: 6697edf4e1b576f40a940f380637cd86, type: 3}
-  m_Controller: {fileID: 0}
-  m_CullingMode: 0
-  m_UpdateMode: 0
-  m_ApplyRootMotion: 0
-  m_LinearVelocityBlending: 0
-  m_StabilizeFeet: 0
-  m_AnimatePhysics: 0
-  m_WarningMessage: 
-  m_HasTransformHierarchy: 1
-  m_AllowConstantClipSamplingOptimization: 1
-  m_KeepAnimatorStateOnDisable: 0
-  m_WriteDefaultValuesOnDisable: 0
 --- !u!1 &155902
 GameObject:
   m_ObjectHideFlags: 0
@@ -120,8 +97,7 @@ GameObject:
   - component: {fileID: 409178}
   - component: {fileID: 3301644}
   - component: {fileID: 2300968}
-  - component: {fileID: 9563802}
-  m_Layer: 6
+  m_Layer: 8
   m_Name: Shell(Clone)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -196,28 +172,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!95 &9563802
-Animator:
-  serializedVersion: 7
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 155902}
-  m_Enabled: 1
-  m_Avatar: {fileID: 9000000, guid: 912f604d71a97be4099d56c9e7e99c92, type: 3}
-  m_Controller: {fileID: 0}
-  m_CullingMode: 0
-  m_UpdateMode: 0
-  m_ApplyRootMotion: 0
-  m_LinearVelocityBlending: 0
-  m_StabilizeFeet: 0
-  m_AnimatePhysics: 0
-  m_WarningMessage: 
-  m_HasTransformHierarchy: 1
-  m_AllowConstantClipSamplingOptimization: 1
-  m_KeepAnimatorStateOnDisable: 0
-  m_WriteDefaultValuesOnDisable: 0
 --- !u!1 &194330
 GameObject:
   m_ObjectHideFlags: 0
@@ -231,9 +185,9 @@ GameObject:
   - component: {fileID: 7492499777147220456}
   - component: {fileID: 7735127276398330633}
   - component: {fileID: -6330571885086524119}
-  m_Layer: 6
+  m_Layer: 8
   m_Name: Shell-Copper
-  m_TagString: Projectile
+  m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -328,7 +282,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 194330}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: 14c37bc53d2349748a5c939894753187, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -336,9 +290,9 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 1
+  m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.1, y: 0.1, z: 0.1}
+  m_Size: {x: 0.01, y: 0.04, z: 0.01}
   m_Center: {x: 0, y: 0, z: 0}

@@ -5,7 +5,7 @@ public class Bullet : MonoBehaviour
 {
     private Player player;
     private CinemachineCamera vcamBullet;
-    public float lifetime = 3.0f;
+    public float lifetime = 9.0f;
     private Vector3 moveDir;
     private Vector3 hitPosition;
     private readonly float moveSpeed = 30f;

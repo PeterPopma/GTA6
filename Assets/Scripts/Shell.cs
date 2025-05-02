@@ -15,15 +15,25 @@ public class Shell : MonoBehaviour
 
     void Start()
     {
-        var velocity = transform.right * ((Random.value / 1f) + 0.5f);
-        velocity = new Vector3(velocity.x, velocity.y + 6f, velocity.z);
-        axisOfRotation = Random.onUnitSphere;
-        myRigidbody.linearVelocity = velocity;
+        Vector3 velocity = new Vector3(Random.value * 2f, 6f, Random.value * 2f);
+        myRigidbody.AddForce(velocity, ForceMode.VelocityChange);
+        myRigidbody.AddTorque(new Vector3(Random.value * 20f, Random.value * 20f, Random.value * 20f), ForceMode.VelocityChange);
     }
 
     void Update()
     {
-        transform.Rotate(axisOfRotation, angularVelocity * Time.smoothDeltaTime);
+    }
+    void OnCollisionEnter(Collision collision)
+    {
+        // Check if hit object is terrain (by tag or other method)
+        if (collision.collider.CompareTag("Terrain"))
+        {
+            // Optional: check for minimum impact force
+            if (collision.relativeVelocity.magnitude > 1.0f)
+            {
+                SoundManager.Instance.PlaySoundAt("Shell", transform.position);
+            }
+        }
     }
 
     void OnTriggerEnter(Collider other)

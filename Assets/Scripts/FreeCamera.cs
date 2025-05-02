@@ -27,6 +27,9 @@ public class FreeCamera : MonoBehaviour
     private float timeMovingStarted;
     private float moveSpeed;
     private bool movingCamera;
+    float speedUpDown;
+    float speedLeftRight;
+    float speedBackForth;
 
     public Vector3 CameraPosition { get => cameraPosition; set => cameraPosition = value; }
     public float MoveSpeed { get => moveSpeed; set => moveSpeed = value; }
@@ -94,14 +97,17 @@ public class FreeCamera : MonoBehaviour
         UpdateCameraMoveStatus(value.isPressed);
         buttonCameraDown = value.isPressed;
     }
+
     private void OnIncreaseScrollSpeed(InputValue value)
     {
         moveByKeySpeed *= 2f;
+        Game.Instance.ShowMessage("Scroll speed: " + moveByKeySpeed);
     }
 
     private void OnDecreaseScrollSpeed(InputValue value)
     {
         moveByKeySpeed *= 0.5f;
+        Game.Instance.ShowMessage("Scroll speed: " + moveByKeySpeed);
     }
 
     private void OnCameraLookAround(InputValue value)
@@ -132,6 +138,22 @@ public class FreeCamera : MonoBehaviour
         vcamMainCamera.transform.position = cameraPosition;
     }
 
+    private void FixedUpdate()
+    {
+        if (!buttonCameraUp && !buttonCameraDown)
+        {
+            speedUpDown *= 0.99f;
+        }
+        if (!buttonCameraRight && !buttonCameraLeft)
+        {
+            speedLeftRight *= 0.99f;
+        }
+        if (!buttonCameraBack && !buttonCameraForward)
+        {
+            speedBackForth *= 0.99f; 
+        }
+    }
+
     private void Update()
     {
         if (!vcamMainCamera.isActiveAndEnabled)
@@ -153,28 +175,32 @@ public class FreeCamera : MonoBehaviour
         }
         if (buttonCameraForward)
         {
-            cameraPosition += transform.forward * Time.deltaTime * moveSpeed;
+            speedBackForth += Time.deltaTime * moveSpeed;
         }
         if (buttonCameraBack)
         {
-            cameraPosition -= transform.forward * Time.deltaTime * moveSpeed;
+            speedBackForth -= Time.deltaTime * moveSpeed;
         }
         if (buttonCameraRight)
         {
-            cameraPosition += transform.right * Time.deltaTime * moveSpeed;
+            speedLeftRight += Time.deltaTime * moveSpeed;
         }
         if (buttonCameraLeft)
         {
-            cameraPosition -= transform.right * Time.deltaTime * moveSpeed;
+            speedLeftRight -= Time.deltaTime * moveSpeed;
         }
         if (buttonCameraUp)
         {
-            cameraPosition += transform.up * Time.deltaTime * moveSpeed;
+            speedUpDown += Time.deltaTime * moveSpeed;
         }
         if (buttonCameraDown)
         {
-            cameraPosition -= transform.up * Time.deltaTime * moveSpeed;
+            speedUpDown -= Time.deltaTime * moveSpeed;
         }
+
+        cameraPosition += transform.up * speedUpDown;
+        cameraPosition += transform.forward * speedBackForth;
+        cameraPosition += transform.right * speedLeftRight;
 
         // Look around when right mouse is pressed
         if (buttonCameraLookAround)
