@@ -25,8 +25,8 @@ public class NPC : MonoBehaviour
     const int TIME_BEFORE_DYING_PLAYER_IS_REMOVED = 300;
     const int PATROL_AREA_SIZE = 20;
     const int MAX_WALK_DISTANCE = 50;
-    const float FART_LIKELINESS = 0.002f;
-    float TALK_LIKELINESS = 0.2f;
+    const float FART_LIKELINESS = 0.001f;
+    float TALK_LIKELINESS = 0.0001f;
 
     [SerializeField] bool isFemale;
     [SerializeField] NPCState_ initialState = NPCState_.WalkingAround;
@@ -56,6 +56,7 @@ public class NPC : MonoBehaviour
     private int timesHit;
     private bool pistolActive;
     private bool shotFired;
+    private bool isBeingFollowed;
     private const int MAXIMUM_DISTANCE_TALKING = 100;
     private FaceAnimation faceAnimation;
 
@@ -120,7 +121,7 @@ public class NPC : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (new[] { NPCState_.WalkingAround, NPCState_.Patrol, NPCState_.StandingStill }.Contains(npcState))
+        if (!isBeingFollowed && new[] { NPCState_.WalkingAround, NPCState_.Patrol, NPCState_.StandingStill }.Contains(npcState))
         {
             if (Random.value < TALK_LIKELINESS)
             {
@@ -130,11 +131,12 @@ public class NPC : MonoBehaviour
                     NPC otherPlayerNPCScript = collider.gameObject.GetComponent<NPC>();
                     if (otherPlayerNPCScript != null && otherPlayerNPCScript != this)
                     {
-                        if (new[] { NPCState_.WalkingAround, NPCState_.Patrol, NPCState_.StandingStill }.Contains(otherPlayerNPCScript.NpcState))
+                        if (!otherPlayerNPCScript.isBeingFollowed && new[] { NPCState_.WalkingAround, NPCState_.Patrol, NPCState_.StandingStill }.Contains(otherPlayerNPCScript.NpcState))
                         {
                             followingPerson = collider.transform;
                             SetNPCState(NPCState_.FollowingPlayer);
                             followingPerson.GetComponent<NPC>().SetNPCState(NPCState_.StandingStill);
+                            followingPerson.GetComponent<NPC>().isBeingFollowed = true;
                             break;
                         }
                     }
@@ -145,6 +147,7 @@ public class NPC : MonoBehaviour
 
     public void StartConversationSecondPerson(bool otherIsFemale, int conversationNumber)
     {
+        isBeingFollowed = false;
         animator.SetFloat(animIDSpeed, 0);
         SetNPCState(NPCState_.Talking);
         string soundName = "";
@@ -192,6 +195,7 @@ public class NPC : MonoBehaviour
         else if (isFemale && !followingPerson.GetComponent<NPC>().isFemale)
         {
             conversationNumber = Random.Range(1, 3);
+            conversationNumber = 1;
             soundName = "ConversationFM" + conversationNumber + "_1";
         }
         else if (!isFemale && followingPerson.GetComponent<NPC>().isFemale)
@@ -217,7 +221,6 @@ public class NPC : MonoBehaviour
     private System.Collections.IEnumerator EndConversation(float delay)
     {
         yield return new WaitForSeconds(delay);
-        TALK_LIKELINESS = 0.0002f;
         SetNPCState(initialState);
     }
 

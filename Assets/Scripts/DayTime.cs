@@ -14,9 +14,10 @@ public class DayTime : MonoBehaviour
     [SerializeField] GameObject moonMesh;
     [SerializeField] Volume volumeSkyFog;
     [SerializeField] Transform lightRoot;
+    [SerializeField] float minuteOfDay = 1152;
+    [SerializeField] bool timeEnabled;
 
     const int MINUTES_PER_DAY = 1440;
-    float minuteOfDay;
     bool isNight;
     bool lightsOn;
     float elevation;
@@ -26,15 +27,17 @@ public class DayTime : MonoBehaviour
 
     private void Start()
     {
-        minuteOfDay = MINUTES_PER_DAY / 2;
         SetLights(false); 
         moonMesh.SetActive(false);
     }
 
     void FixedUpdate()
     {
-        minuteOfDay += 0.2f;
-        if(minuteOfDay >= MINUTES_PER_DAY)
+        if (timeEnabled)
+        {
+            minuteOfDay += 0.2f;
+        }
+        if (minuteOfDay >= MINUTES_PER_DAY)
         {
             minuteOfDay = 0;
         }

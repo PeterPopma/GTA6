@@ -702,7 +702,10 @@ public class Player : MonoBehaviour
 
     public void OnMove(InputValue value)
     {
-        move = value.Get<Vector2>();
+        if (!Game.Instance.UseFreeCamera)
+        {
+            move = value.Get<Vector2>();
+        }
     }
 
     public void OnLook(InputValue value)

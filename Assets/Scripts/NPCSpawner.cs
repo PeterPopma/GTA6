@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class NPCSpawner : MonoBehaviour
@@ -15,6 +16,7 @@ public class NPCSpawner : MonoBehaviour
     [SerializeField] float minZ = -1500;
     [SerializeField] float maxZ = 1500;
     [SerializeField] float centerRadius;
+    [SerializeField] bool spawnOneOfEachTypeAtStartup; 
 
     float timeLastSpawn;
 
@@ -27,11 +29,23 @@ public class NPCSpawner : MonoBehaviour
         {
             SpawnNewObject();
         }
+        if (spawnOneOfEachTypeAtStartup)
+        {
+            for (int i = 0; i < pfSpawnObjects.Length; i++)
+            {
+                SpawnNewObject(i);
+            }
+        }
     }
 
     private void SpawnNewObject()
     {
         int objectIndex = Random.Range(0, pfSpawnObjects.Length);
+        SpawnNewObject(objectIndex);
+    }
+
+    private void SpawnNewObject(int objectIndex)
+    {
         int triesLeft = 10;
         float x, y, z;
 
